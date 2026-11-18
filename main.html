@@ -1,0 +1,1517 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>RELAY — Live Direct Terminal</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Google Fonts: Plus Jakarta Sans & JetBrains Mono -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['"Plus Jakarta Sans"', 'system-ui', '-apple-system', 'sans-serif'],
+            mono: ['"JetBrains Mono"', 'monospace'],
+          },
+          colors: {
+            ink: '#111111',
+            bone: '#F7F6F2',
+            paper: '#FFFFFF',
+            cobalt: '#1D4ED8',
+            cobaltHover: '#1E40AF',
+            crimson: '#DC2626',
+            crimsonHover: '#B91C1C',
+            emeraldPing: '#059669',
+            slatePing: '#94A3B8',
+            stealthPing: '#7C3AED',
+          },
+          boxShadow: {
+            tactile: '5px 5px 0px 0px #111111',
+            tactileSm: '3px 3px 0px 0px #111111',
+            tactileLg: '8px 8px 0px 0px #111111',
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    /* =====================================================================
+       1. STRICT ZERO-SCROLL & ANTI-SELECTION / ANTI-CAPTURE PROTECTION
+    ====================================================================== */
+    html, body {
+      height: 100dvh;
+      width: 100vw;
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+      background-color: #F7F6F2;
+      color: #111111;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+      user-select: none;
+      -webkit-user-select: none;
+      -moz-user-select: none;
+      -ms-user-select: none;
+      -webkit-touch-callout: none;
+    }
+
+    /* Re-enable typing inside active form inputs only */
+    input, textarea {
+      user-select: text;
+      -webkit-user-select: text;
+    }
+
+    /* Block printing completely */
+    @media print {
+      html, body {
+        display: none !important;
+        visibility: hidden !important;
+      }
+    }
+
+    /* Subtle Architectural Grid Background */
+    .canvas-grid {
+      background-size: 32px 32px;
+      background-image:
+        linear-gradient(to right, rgba(17, 17, 17, 0.05) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(17, 17, 17, 0.05) 1px, transparent 1px);
+    }
+
+    /* Tactile Neo-Swiss Button Mechanics */
+    .tactile-btn {
+      border: 2px solid #111111;
+      transition: transform 100ms ease, box-shadow 100ms ease, background-color 140ms ease, color 140ms ease;
+    }
+    .tactile-btn:hover:not(:disabled) {
+      transform: translate(-2px, -2px);
+      box-shadow: 5px 5px 0px 0px #111111;
+    }
+    .tactile-btn:active:not(:disabled) {
+      transform: translate(2px, 2px);
+      box-shadow: 1px 1px 0px 0px #111111;
+    }
+    .tactile-btn:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+    }
+
+    /* Tactile Input */
+    .tactile-input {
+      border: 2px solid #111111;
+      background-color: #FFFFFF;
+      transition: box-shadow 120ms ease, border-color 120ms ease;
+    }
+    .tactile-input:focus {
+      outline: none;
+      border-color: #1D4ED8;
+      box-shadow: 3px 3px 0px 0px #1D4ED8;
+    }
+
+    /* Live Ping Pulse Rings */
+    @keyframes pingPulse {
+      0% { transform: scale(0.95); opacity: 0.85; }
+      75% { transform: scale(2.1); opacity: 0; }
+      100% { transform: scale(2.1); opacity: 0; }
+    }
+    .ping-halo {
+      animation: pingPulse 2s cubic-bezier(0, 0, 0.2, 1) infinite;
+    }
+
+    /* Clean Custom Scrollbar for Internal Modal Lists Only */
+    .inner-scroll::-webkit-scrollbar {
+      width: 5px;
+    }
+    .inner-scroll::-webkit-scrollbar-track {
+      background: #F7F6F2;
+    }
+    .inner-scroll::-webkit-scrollbar-thumb {
+      background: #111111;
+    }
+
+    /* Drawer Slide Transition */
+    .drawer-panel {
+      transition: transform 240ms cubic-bezier(0.22, 1, 0.36, 1);
+    }
+  </style>
+</head>
+<body class="font-sans canvas-grid flex flex-col justify-between">
+
+  <!-- =====================================================================
+       PRIVACY / ANTI-SCREENSHOT CURTAIN OVERLAY
+       Activates on PrintScreen, capture shortcuts, window blur, or tab switch
+  ====================================================================== -->
+  <div id="privacyShield" class="hidden fixed inset-0 z-[100] bg-ink text-bone flex flex-col items-center justify-center p-6 text-center">
+    <div class="max-w-md border-2 border-bone p-8 bg-ink space-y-5">
+      <div class="w-12 h-12 mx-auto border-2 border-bone flex items-center justify-center">
+        <svg class="w-6 h-6 text-bone" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="square">
+          <rect x="3" y="11" width="18" height="11" rx="0" />
+          <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+        </svg>
+      </div>
+      <div class="space-y-2">
+        <p class="font-mono text-xs uppercase tracking-[0.22em] text-stealthPing font-bold">SCREEN PROTECTION ACTIVE</p>
+        <h2 class="text-2xl font-extrabold tracking-tight">Viewport Obscured</h2>
+        <p id="privacyReason" class="text-xs text-bone/75 leading-relaxed">
+          Screen capture, text selection, and background window previews are blocked to protect live conversations.
+        </p>
+      </div>
+      <button id="resumeViewportBtn" type="button" class="w-full py-3 px-5 bg-bone text-ink font-bold text-xs uppercase tracking-wider border-2 border-bone hover:bg-cobalt hover:text-paper hover:border-cobalt transition-colors">
+        Resume Live Session
+      </button>
+    </div>
+  </div>
+
+  <!-- =====================================================================
+       TOP HEADER BAR (64px Fixed Height — Zero Overflow)
+  ====================================================================== -->
+  <header class="h-16 w-full bg-paper border-b-2 border-ink px-3 sm:px-6 flex items-center justify-between shrink-0 z-20">
+    
+    <!-- Left: Brand Wordmark & Persistent Current User Identity -->
+    <div class="flex items-center gap-2.5 sm:gap-4 min-w-0">
+      <div class="flex items-center gap-2 shrink-0">
+        <div class="w-8 h-8 bg-cobalt border-2 border-ink flex items-center justify-center">
+          <svg class="w-4 h-4 text-paper" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="square">
+            <path d="M4 7h10M4 12h16M4 17h7" />
+            <circle cx="18" cy="17" r="2.2" fill="currentColor" />
+          </svg>
+        </div>
+        <span class="font-extrabold tracking-tight text-base sm:text-lg text-ink hidden xs:inline">RELAY</span>
+      </div>
+
+      <div class="h-6 w-[1.5px] bg-ink/20 hidden sm:block"></div>
+
+      <!-- Current User Name + Gender Pill + Live Ping -->
+      <div class="flex items-center gap-2 bg-bone border-[1.5px] border-ink px-2.5 py-1 min-w-0">
+        <span id="selfPingDot" class="w-2.5 h-2.5 rounded-full bg-emeraldPing shrink-0"></span>
+        <span id="headerUserName" class="font-bold text-xs sm:text-sm text-ink truncate max-w-[95px] sm:max-w-[160px]">Loading...</span>
+        <span id="headerUserGender" class="font-mono text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 bg-ink text-paper shrink-0">---</span>
+      </div>
+    </div>
+
+    <!-- Right: Presence Visibility Toggle, Hamburger Requests Drawer, Logout -->
+    <div class="flex items-center gap-2 sm:gap-3 shrink-0">
+      
+      <!-- Online Visibility Toggle Switch -->
+      <button 
+        type="button" 
+        id="presenceToggleBtn"
+        title="Toggle whether others see your Online/Offline status or Stealth Purple ping"
+        class="flex items-center gap-2 border-[1.5px] border-ink bg-bone hover:bg-paper px-2.5 py-1.5 transition-colors"
+      >
+        <span class="hidden md:inline font-mono text-[11px] font-semibold uppercase tracking-wider text-ink">Status:</span>
+        <span id="presenceModeLabel" class="font-mono text-[11px] font-bold uppercase text-emeraldPing">VISIBLE</span>
+        <!-- Tactile Switch Track -->
+        <span id="presenceSwitchTrack" class="w-8 h-4 bg-ink p-0.5 flex items-center justify-end transition-all">
+          <span id="presenceSwitchThumb" class="w-3 h-3 bg-emeraldPing block"></span>
+        </span>
+      </button>
+
+      <!-- Hamburger Menu Button (Pending Requests & Active Threads) -->
+      <button 
+        type="button" 
+        id="openDrawerBtn"
+        aria-label="Open Requests Menu"
+        class="relative h-9 px-2.5 sm:px-3 bg-paper border-[1.5px] border-ink hover:bg-bone flex items-center gap-2 transition-colors"
+      >
+        <svg class="w-4 h-4 text-ink" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="square">
+          <line x1="3" y1="6" x2="21" y2="6" />
+          <line x1="3" y1="12" x2="21" y2="12" />
+          <line x1="3" y1="18" x2="21" y2="18" />
+        </svg>
+        <span class="hidden sm:inline font-mono text-xs font-bold uppercase text-ink">Requests</span>
+        <span id="pendingBadge" class="hidden min-w-[20px] h-5 px-1 bg-crimson text-paper font-mono text-[11px] font-bold flex items-center justify-center">0</span>
+      </button>
+
+      <!-- Logout Button -->
+      <button 
+        type="button" 
+        id="logoutBtn"
+        title="Sign Out"
+        class="h-9 px-2.5 sm:px-3 bg-ink text-paper hover:bg-crimson border-[1.5px] border-ink flex items-center gap-1.5 transition-colors"
+      >
+        <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="square">
+          <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+          <polyline points="16 17 21 12 16 7" />
+          <line x1="21" y1="12" x2="9" y2="12" />
+        </svg>
+        <span class="hidden md:inline font-mono text-xs font-bold uppercase">Logout</span>
+      </button>
+
+    </div>
+  </header>
+
+  <!-- =====================================================================
+       INLINE TOAST NOTIFICATION BAR (Non-intrusive floating feedback)
+  ====================================================================== -->
+  <div id="toastBar" class="hidden fixed top-20 left-1/2 -translate-x-1/2 z-50 bg-ink text-paper border-2 border-ink shadow-tactileSm px-4 py-2.5 font-mono text-xs flex items-center gap-3 max-w-[92vw]">
+    <span id="toastDot" class="w-2 h-2 rounded-full bg-cobalt shrink-0"></span>
+    <span id="toastMessage" class="truncate">Notification</span>
+  </div>
+
+  <!-- =====================================================================
+       CENTERPIECE STAGE (Zero-Scroll Main Action Canvas)
+  ====================================================================== -->
+  <main class="flex-1 w-full flex flex-col items-center justify-center px-4 sm:px-6 overflow-hidden">
+    <div class="w-full max-w-xl bg-paper border-2 border-ink shadow-tactileLg p-6 sm:p-10 text-center space-y-6 sm:space-y-8">
+      
+      <!-- Top Telemetry Strip -->
+      <div class="flex items-center justify-between border-b-[1.5px] border-ink/15 pb-3 font-mono text-[11px] text-ink/65">
+        <span class="flex items-center gap-2">
+          <span class="w-2 h-2 rounded-full bg-emeraldPing"></span>
+          <span id="dbConnectionStatus">LIVE DIRECTORY SYNCED</span>
+        </span>
+        <span>EPHEMERAL 1:1 WIRE</span>
+      </div>
+
+      <!-- Editorial Headline -->
+      <div class="space-y-3">
+        <p class="font-mono text-xs uppercase tracking-[0.2em] text-cobalt font-bold">
+          // DIRECT DISCOVERY
+        </p>
+        <h1 class="text-3xl sm:text-5xl font-extrabold tracking-tight leading-[1.06] text-ink">
+          Start a live<br/>conversation.
+        </h1>
+        <p class="text-xs sm:text-sm text-ink/70 max-w-md mx-auto leading-relaxed">
+          Select a directory filter to find verified people nearby. Send one opening message—if they reply, your direct thread unlocks without limits.
+        </p>
+      </div>
+
+      <!-- HUGE PRIMARY CTA BUTTON: SEARCH PEOPLE NEARBY -->
+      <div class="pt-1">
+        <button 
+          type="button" 
+          id="searchNearbyBtn"
+          class="tactile-btn w-full py-5 sm:py-6 px-6 bg-cobalt hover:bg-cobaltHover text-paper font-extrabold text-base sm:text-xl tracking-tight uppercase flex items-center justify-center gap-3.5 shadow-tactile"
+        >
+          <svg class="w-6 h-6 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="square">
+            <circle cx="11" cy="11" r="7" />
+            <line x1="20" y1="20" x2="16.2" y2="16.2" />
+          </svg>
+          <span>Search People Nearby</span>
+        </button>
+      </div>
+
+      <!-- Legend for Status Pings -->
+      <div class="pt-2 border-t-[1.5px] border-ink/15 flex flex-wrap items-center justify-center gap-4 sm:gap-6 font-mono text-[11px] text-ink/75">
+        <span class="flex items-center gap-1.5">
+          <span class="w-2.5 h-2.5 rounded-full bg-emeraldPing inline-block"></span>
+          <span>ONLINE</span>
+        </span>
+        <span class="flex items-center gap-1.5">
+          <span class="w-2.5 h-2.5 rounded-full bg-slatePing inline-block"></span>
+          <span>OFFLINE</span>
+        </span>
+        <span class="flex items-center gap-1.5">
+          <span class="w-2.5 h-2.5 rounded-full bg-stealthPing inline-block"></span>
+          <span>STATUS HIDDEN</span>
+        </span>
+      </div>
+
+    </div>
+  </main>
+
+  <!-- =====================================================================
+       COMPACT FOOTER BAR
+  ====================================================================== -->
+  <footer class="h-9 w-full bg-paper border-t-[1.5px] border-ink px-4 sm:px-6 flex items-center justify-between font-mono text-[10px] sm:text-[11px] text-ink/65 shrink-0">
+    <span>NO SCREENSHOTS // ZERO RETENTION ON CLOSE</span>
+    <span id="footerActiveCount">0 ACTIVE THREADS</span>
+  </footer>
+
+  <!-- =====================================================================
+       MODAL 1: GENDER FILTER POPUP (MALE / FEMALE)
+  ====================================================================== -->
+  <div id="genderModal" class="hidden fixed inset-0 z-30 bg-ink/75 flex items-center justify-center p-4">
+    <div class="w-full max-w-sm bg-paper border-2 border-ink shadow-tactileLg p-6 space-y-5">
+      <div class="flex items-center justify-between border-b-2 border-ink pb-3">
+        <div>
+          <p class="font-mono text-[10px] uppercase tracking-widest text-cobalt font-bold">STEP 01 // FILTER</p>
+          <h2 class="text-lg font-extrabold tracking-tight text-ink">Select Directory</h2>
+        </div>
+        <button type="button" id="closeGenderModalBtn" aria-label="Close Filter" class="w-8 h-8 border-[1.5px] border-ink bg-bone hover:bg-crimson hover:text-paper flex items-center justify-center transition-colors">
+          <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="square">
+            <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+          </svg>
+        </button>
+      </div>
+
+      <p class="text-xs text-ink/70 leading-relaxed">
+        Choose who you want to discover in the live nearby directory:
+      </p>
+
+      <div class="grid grid-cols-2 gap-3.5 pt-1">
+        <button 
+          type="button" 
+          data-filter-gender="Male"
+          class="gender-choice-btn tactile-btn py-6 px-4 bg-bone hover:bg-cobalt hover:text-paper text-ink flex flex-col items-center justify-center gap-2.5"
+        >
+          <svg class="w-7 h-7" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="square">
+            <circle cx="10" cy="14" r="5" />
+            <path d="M19 5l-5.4 5.4M19 5h-5M19 5v5" />
+          </svg>
+          <span class="font-extrabold text-sm uppercase tracking-wider">Male</span>
+        </button>
+
+        <button 
+          type="button" 
+          data-filter-gender="Female"
+          class="gender-choice-btn tactile-btn py-6 px-4 bg-bone hover:bg-cobalt hover:text-paper text-ink flex flex-col items-center justify-center gap-2.5"
+        >
+          <svg class="w-7 h-7" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="square">
+            <circle cx="12" cy="9" r="5" />
+            <path d="M12 14v7M9 18h6" />
+          </svg>
+          <span class="font-extrabold text-sm uppercase tracking-wider">Female</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- =====================================================================
+       MODAL 2: FILTERED PEOPLE NEARBY DIRECTORY LIST
+  ====================================================================== -->
+  <div id="peopleListModal" class="hidden fixed inset-0 z-30 bg-ink/75 flex items-center justify-center p-4">
+    <div class="w-full max-w-md bg-paper border-2 border-ink shadow-tactileLg flex flex-col max-h-[82dvh]">
+      
+      <!-- Header -->
+      <div class="p-4 sm:p-5 border-b-2 border-ink bg-bone flex items-center justify-between shrink-0">
+        <div>
+          <div class="flex items-center gap-2">
+            <span class="font-mono text-[10px] uppercase tracking-widest text-cobalt font-bold">NEARBY DIRECTORY</span>
+            <span id="listGenderBadge" class="font-mono text-[10px] font-bold uppercase px-1.5 py-0.5 bg-ink text-paper">MALE</span>
+          </div>
+          <h2 class="text-lg font-extrabold tracking-tight text-ink mt-0.5">Available Profiles</h2>
+        </div>
+        <div class="flex items-center gap-2">
+          <button type="button" id="changeGenderFilterBtn" class="font-mono text-[11px] font-bold uppercase px-2.5 py-1.5 border-[1.5px] border-ink bg-paper hover:bg-ink hover:text-paper transition-colors">
+            Filter
+          </button>
+          <button type="button" id="closePeopleListBtn" aria-label="Close List" class="w-8 h-8 border-[1.5px] border-ink bg-paper hover:bg-crimson hover:text-paper flex items-center justify-center transition-colors">
+            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="square">
+              <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- Scrollable List of Profiles -->
+      <div id="peopleListContainer" class="p-4 space-y-2.5 overflow-y-auto inner-scroll flex-1">
+        <!-- Populated dynamically via JS -->
+      </div>
+
+    </div>
+  </div>
+
+  <!-- =====================================================================
+       MODAL 3: ONE-MESSAGE FIRST / INFINITE LIVE CHAT BOX POPUP
+  ====================================================================== -->
+  <div id="chatModal" class="hidden fixed inset-0 z-40 bg-ink/80 flex items-center justify-center p-3 sm:p-4">
+    <div class="w-full max-w-md bg-paper border-2 border-ink shadow-tactileLg flex flex-col h-[78dvh] max-h-[580px]">
+      
+      <!-- Chat Box Top Bar: Peer Name + Live Status Ping + Cross (X) Delete Button -->
+      <div class="p-3.5 sm:p-4 border-b-2 border-ink bg-bone flex items-center justify-between shrink-0">
+        <div class="flex items-center gap-3 min-w-0">
+          <!-- Status Ping Indicator -->
+          <div id="chatPeerPingWrapper" class="relative flex items-center justify-center w-3.5 h-3.5 shrink-0">
+            <span id="chatPeerPingHalo" class="ping-halo absolute inset-0 rounded-full bg-emeraldPing"></span>
+            <span id="chatPeerPingDot" class="relative w-3 h-3 rounded-full bg-emeraldPing block"></span>
+          </div>
+          <div class="min-w-0">
+            <div class="flex items-center gap-2">
+              <h3 id="chatPeerName" class="font-extrabold text-base text-ink truncate">Peer Name</h3>
+              <span id="chatPeerGender" class="font-mono text-[10px] font-bold uppercase px-1.5 py-0.5 bg-ink text-paper shrink-0">MALE</span>
+            </div>
+            <p id="chatPeerStatusText" class="font-mono text-[10px] uppercase tracking-wider text-emeraldPing font-semibold">ONLINE NOW</p>
+          </div>
+        </div>
+
+        <!-- CROSS (X) BUTTON: CLOSES & WIPES ENTIRE CHAT HISTORY -->
+        <button 
+          type="button" 
+          id="closeAndWipeChatBtn"
+          title="Close chat and permanently delete all messages"
+          class="h-9 px-3 bg-crimson hover:bg-crimsonHover text-paper border-2 border-ink flex items-center gap-1.5 font-mono text-xs font-bold uppercase transition-colors shrink-0"
+        >
+          <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="square">
+            <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+          </svg>
+          <span>End</span>
+        </button>
+      </div>
+
+      <!-- Ephemeral Warning Strip -->
+      <div id="chatRuleBanner" class="px-3.5 py-2 bg-ink text-bone font-mono text-[10px] uppercase tracking-wider flex items-center justify-between shrink-0">
+        <span id="chatRuleText">RULE: 1 OPENING MESSAGE UNTIL REPLY</span>
+        <span>X = WIPE ALL</span>
+      </div>
+
+      <!-- Messages Stream Container -->
+      <div id="chatMessagesContainer" class="flex-1 p-4 overflow-y-auto inner-scroll space-y-3 bg-bone/50 flex flex-col">
+        <!-- Messages rendered here -->
+      </div>
+
+      <!-- Message Input Form -->
+      <form id="chatSendForm" class="p-3 border-t-2 border-ink bg-paper flex items-center gap-2 shrink-0">
+        <input 
+          type="text" 
+          id="chatMessageInput" 
+          placeholder="Write your opening message..." 
+          autocomplete="off"
+          maxlength="500"
+          class="tactile-input flex-1 px-3 py-2.5 text-sm font-medium text-ink placeholder:text-ink/40"
+        />
+        <button 
+          type="submit" 
+          id="chatSendBtn"
+          class="tactile-btn h-[42px] px-4 bg-cobalt hover:bg-cobaltHover text-paper font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-1.5 shrink-0"
+        >
+          <span>Send</span>
+          <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="square">
+            <line x1="22" y1="2" x2="11" y2="13" />
+            <polygon points="22 2 15 22 11 13 2 9 22 2" />
+          </svg>
+        </button>
+      </form>
+
+    </div>
+  </div>
+
+  <!-- =====================================================================
+       SLIDE-OVER HAMBURGER DRAWER: PENDING REQUESTS & ACTIVE THREADS
+  ====================================================================== -->
+  <div id="requestsDrawerBackdrop" class="hidden fixed inset-0 z-30 bg-ink/70 flex justify-end">
+    <aside id="requestsDrawerPanel" class="w-full max-w-sm bg-paper border-l-2 border-ink h-full flex flex-col shadow-tactileLg">
+      
+      <!-- Drawer Header -->
+      <div class="p-4 border-b-2 border-ink bg-bone flex items-center justify-between shrink-0">
+        <div>
+          <p class="font-mono text-[10px] uppercase tracking-widest text-cobalt font-bold">INBOX &amp; THREADS</p>
+          <h2 class="text-lg font-extrabold tracking-tight text-ink">Connection Requests</h2>
+        </div>
+        <button type="button" id="closeDrawerBtn" aria-label="Close Drawer" class="w-8 h-8 border-[1.5px] border-ink bg-paper hover:bg-crimson hover:text-paper flex items-center justify-center transition-colors">
+          <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="square">
+            <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+          </svg>
+        </button>
+      </div>
+
+      <!-- Drawer Tabs: Incoming Requests vs Active Chats -->
+      <div class="grid grid-cols-2 border-b-2 border-ink bg-bone shrink-0">
+        <button type="button" id="drawerTabRequests" class="py-2.5 px-3 font-mono text-xs font-bold uppercase border-r-[1.5px] border-ink bg-paper text-ink">
+          Pending (<span id="tabPendingCount">0</span>)
+        </button>
+        <button type="button" id="drawerTabActive" class="py-2.5 px-3 font-mono text-xs font-bold uppercase bg-bone text-ink/60 hover:text-ink">
+          Active (<span id="tabActiveCount">0</span>)
+        </button>
+      </div>
+
+      <!-- Drawer Scrollable Body -->
+      <div id="drawerListContainer" class="flex-1 p-4 overflow-y-auto inner-scroll space-y-3">
+        <!-- Populated dynamically -->
+      </div>
+
+    </aside>
+  </div>
+
+  <!-- =====================================================================
+       FIREBASE v10 MODULAR SDK & REAL-TIME APPLICATION ENGINE
+  ====================================================================== -->
+  <script type="module">
+    // -----------------------------------------------------------------------
+    // 1. FIREBASE CONFIGURATION
+    // Paste the EXACT SAME firebaseConfig object you used in index.html here!
+    // -----------------------------------------------------------------------
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+    import {
+      getFirestore,
+      collection,
+      doc,
+      getDoc,
+      setDoc,
+      updateDoc,
+      deleteDoc,
+      addDoc,
+      query,
+      where,
+      orderBy,
+      onSnapshot,
+      getDocs,
+      serverTimestamp
+    } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+    const firebaseConfig = {
+    apiKey: "AIzaSyBWEi9qD_SOmDvDbqpwyiD5neq3gqAQeZI",
+    authDomain: "relay-texting-app.firebaseapp.com",
+    projectId: "relay-texting-app",
+    storageBucket: "relay-texting-app.firebasestorage.app",
+    messagingSenderId: "517678798429",
+    appId: "1:517678798429:web:e1421e665c226a95cadfb4",
+    measurementId: "G-7PV4T2FC7D"
+  };
+
+    const isFirebaseConfigured =
+      firebaseConfig.apiKey &&
+      firebaseConfig.apiKey !== "YOUR_FIREBASE_API_KEY" &&
+      firebaseConfig.projectId !== "YOUR_PROJECT_ID";
+
+    let db = null;
+    if (isFirebaseConfigured) {
+      try {
+        const app = initializeApp(firebaseConfig);
+        db = getFirestore(app);
+      } catch (err) {
+        console.error("Firebase init failed, using local sandbox:", err);
+      }
+    }
+
+    const dbConnectionStatus = document.getElementById("dbConnectionStatus");
+    if (db) {
+      dbConnectionStatus.textContent = "FIREBASE LIVE SYNC";
+    } else {
+      dbConnectionStatus.textContent = "SANDBOX DEMO MODE";
+    }
+
+    // -----------------------------------------------------------------------
+    // 2. ANTI-SCREENSHOT, ANTI-SELECTION & PRIVACY SHIELD PROTECTION
+    // -----------------------------------------------------------------------
+    const privacyShield = document.getElementById("privacyShield");
+    const privacyReason = document.getElementById("privacyReason");
+    const resumeViewportBtn = document.getElementById("resumeViewportBtn");
+
+    function triggerPrivacyCurtain(reasonText) {
+      privacyReason.textContent = reasonText;
+      privacyShield.classList.remove("hidden");
+      // Attempt to clear clipboard on PrintScreen
+      try {
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText("").catch(() => {});
+        }
+      } catch (_) {}
+    }
+
+    resumeViewportBtn.addEventListener("click", () => {
+      privacyShield.classList.add("hidden");
+    });
+
+    // Block right-click context menu, copy, cut, drag
+    document.addEventListener("contextmenu", (e) => e.preventDefault());
+    document.addEventListener("copy", (e) => {
+      e.preventDefault();
+      showToast("Copying content is disabled.", "crimson");
+    });
+    document.addEventListener("cut", (e) => e.preventDefault());
+    document.addEventListener("dragstart", (e) => e.preventDefault());
+
+    // Intercept PrintScreen and OS screenshot / print / save shortcuts
+    window.addEventListener("keyup", (e) => {
+      if (e.key === "PrintScreen") {
+        triggerPrivacyCurtain("PrintScreen key detected. Screen capture is prohibited.");
+      }
+    });
+
+    window.addEventListener("keydown", (e) => {
+      const isMacShot = e.metaKey && e.shiftKey && ["3", "4", "5", "s", "S"].includes(e.key);
+      const isWinSnip = (e.metaKey || e.ctrlKey) && e.shiftKey && ["s", "S"].includes(e.key);
+      const isPrintOrSave = (e.ctrlKey || e.metaKey) && ["p", "P", "s", "S"].includes(e.key);
+
+      if (e.key === "PrintScreen" || isMacShot || isWinSnip || isPrintOrSave) {
+        e.preventDefault();
+        triggerPrivacyCurtain("Screenshot or page export shortcut blocked.");
+      }
+    });
+
+    // Blur/obscure immediately when user switches tab or opens snipping tool overlay
+    document.addEventListener("visibilitychange", () => {
+      if (document.hidden) {
+        triggerPrivacyCurtain("Tab switched or minimized. Session obscured for privacy.");
+      }
+    });
+
+    window.addEventListener("blur", () => {
+      triggerPrivacyCurtain("Window focus lost. Click below to unlock your screen.");
+    });
+
+    // -----------------------------------------------------------------------
+    // 3. CURRENT USER SESSION HYDRATION
+    // -----------------------------------------------------------------------
+    let currentUser = null;
+    try {
+      const raw = sessionStorage.getItem("relay_active_user");
+      if (raw) {
+        currentUser = JSON.parse(raw);
+      }
+    } catch (_) {}
+
+    // Fallback user if main.html is opened standalone without logging in via index.html
+    if (!currentUser || !currentUser.phone) {
+      currentUser = {
+        fullName: "Aarav Verma",
+        gender: "Male",
+        dob: "1999-05-14",
+        phone: "+919800000001"
+      };
+    }
+
+    // Application Runtime State
+    const appState = {
+      online: true,
+      hidePresence: false, // false = Green/Grey visible, true = Purple stealth ping always
+      selectedFilterGender: null,
+      allUsersMap: new Map(), // phone -> user profile with presence
+      chatsMap: new Map(),    // chatId -> chat doc
+      activeChatId: null,
+      activePeerPhone: null,
+      activeDrawerTab: "pending", // "pending" | "active"
+      unsubMessages: null
+    };
+
+    // Render Persistent User Header
+    const headerUserName = document.getElementById("headerUserName");
+    const headerUserGender = document.getElementById("headerUserGender");
+    const selfPingDot = document.getElementById("selfPingDot");
+
+    headerUserName.textContent = currentUser.fullName;
+    headerUserGender.textContent = currentUser.gender || "MEMBER";
+
+    // -----------------------------------------------------------------------
+    // 4. STATUS PING HELPER (GREEN / GREY / STEALTH PURPLE)
+    // -----------------------------------------------------------------------
+    /**
+     * Resolves how a user's status ping should appear to everyone:
+     * - If hidePresence === true -> PURPLE ("STATUS HIDDEN") regardless of online/offline
+     * - Else if online === true -> GREEN ("ONLINE")
+     * - Else -> GREY ("OFFLINE")
+     */
+    function getPresenceVisuals(userObj) {
+      if (userObj && userObj.hidePresence === true) {
+        return {
+          dotClass: "bg-stealthPing",
+          haloClass: "bg-stealthPing",
+          showHalo: false,
+          textClass: "text-stealthPing",
+          label: "STATUS HIDDEN"
+        };
+      }
+      if (userObj && userObj.online === true) {
+        return {
+          dotClass: "bg-emeraldPing",
+          haloClass: "bg-emeraldPing",
+          showHalo: true,
+          textClass: "text-emeraldPing",
+          label: "ONLINE"
+        };
+      }
+      return {
+        dotClass: "bg-slatePing",
+        haloClass: "bg-slatePing",
+        showHalo: false,
+        textClass: "text-slatePing",
+        label: "OFFLINE"
+      };
+    }
+
+    // -----------------------------------------------------------------------
+    // 5. PRESENCE VISIBILITY TOGGLE & REAL-TIME HEARTBEAT
+    // -----------------------------------------------------------------------
+    const presenceToggleBtn = document.getElementById("presenceToggleBtn");
+    const presenceModeLabel = document.getElementById("presenceModeLabel");
+    const presenceSwitchTrack = document.getElementById("presenceSwitchTrack");
+    const presenceSwitchThumb = document.getElementById("presenceSwitchThumb");
+
+    function updateSelfPresenceUI() {
+      if (appState.hidePresence) {
+        // Stealth Mode ON -> Purple ping shown to everyone
+        presenceModeLabel.textContent = "HIDDEN";
+        presenceModeLabel.className = "font-mono text-[11px] font-bold uppercase text-stealthPing";
+        presenceSwitchTrack.className = "w-8 h-4 bg-ink p-0.5 flex items-center justify-start transition-all";
+        presenceSwitchThumb.className = "w-3 h-3 bg-stealthPing block";
+        selfPingDot.className = "w-2.5 h-2.5 rounded-full bg-stealthPing shrink-0";
+      } else {
+        // Visible Mode ON -> Green ping when online
+        presenceModeLabel.textContent = "VISIBLE";
+        presenceModeLabel.className = "font-mono text-[11px] font-bold uppercase text-emeraldPing";
+        presenceSwitchTrack.className = "w-8 h-4 bg-ink p-0.5 flex items-center justify-end transition-all";
+        presenceSwitchThumb.className = "w-3 h-3 bg-emeraldPing block";
+        selfPingDot.className = "w-2.5 h-2.5 rounded-full bg-emeraldPing shrink-0";
+      }
+    }
+
+    async function syncSelfPresenceToBackend() {
+      const payload = {
+        fullName: currentUser.fullName,
+        gender: currentUser.gender,
+        phone: currentUser.phone,
+        online: appState.online,
+        hidePresence: appState.hidePresence,
+        lastSeen: Date.now()
+      };
+
+      if (db) {
+        try {
+          await setDoc(doc(db, "users", currentUser.phone), payload, { merge: true });
+        } catch (err) {
+          console.error("Failed to sync presence:", err);
+        }
+      } else {
+        appState.allUsersMap.set(currentUser.phone, payload);
+      }
+    }
+
+    presenceToggleBtn.addEventListener("click", async () => {
+      appState.hidePresence = !appState.hidePresence;
+      updateSelfPresenceUI();
+      await syncSelfPresenceToBackend();
+
+      if (appState.hidePresence) {
+        showToast("Stealth mode active: Everyone sees a purple ping.", "stealth");
+      } else {
+        showToast("Live presence visible: Green/Grey ping active.", "emerald");
+      }
+    });
+
+    // Set user online on entry, and mark offline when closing window/tab
+    updateSelfPresenceUI();
+    syncSelfPresenceToBackend();
+
+    window.addEventListener("beforeunload", () => {
+      appState.online = false;
+      syncSelfPresenceToBackend();
+    });
+
+    // -----------------------------------------------------------------------
+    // 6. SANDBOX DEMO DATA (Used ONLY if Firebase config is not pasted yet)
+    // -----------------------------------------------------------------------
+    const demoMessagesStore = new Map(); // chatId -> Array of messages
+
+    function initDemoSandboxData() {
+      const seedPeers = [
+        { fullName: "Rohan Kapoor", gender: "Male", phone: "+919811111101", online: true, hidePresence: false },
+        { fullName: "Kabir Malhotra", gender: "Male", phone: "+919811111102", online: false, hidePresence: false },
+        { fullName: "Devansh Nair", gender: "Male", phone: "+919811111103", online: true, hidePresence: true },
+        { fullName: "Vikramaditya Rao", gender: "Male", phone: "+919811111104", online: true, hidePresence: false },
+        { fullName: "Ananya Sen", gender: "Female", phone: "+919822222201", online: true, hidePresence: false },
+        { fullName: "Meera Krishnan", gender: "Female", phone: "+919822222202", online: true, hidePresence: true },
+        { fullName: "Diya Chatterjee", gender: "Female", phone: "+919822222203", online: false, hidePresence: false },
+        { fullName: "Sanya Oberoi", gender: "Female", phone: "+919822222204", online: true, hidePresence: false }
+      ];
+
+      seedPeers.forEach(p => appState.allUsersMap.set(p.phone, p));
+
+      // Seed 1 incoming pending request so the user can immediately test replying or deleting
+      const incomingPeer = seedPeers[4]; // Ananya Sen
+      const sampleChatId = getChatId(currentUser.phone, incomingPeer.phone);
+      appState.chatsMap.set(sampleChatId, {
+        id: sampleChatId,
+        participants: [incomingPeer.phone, currentUser.phone],
+        initiator: incomingPeer.phone,
+        recipient: currentUser.phone,
+        status: "pending",
+        firstMessageText: "Hey, saw you online nearby. Want to chat?",
+        updatedAt: Date.now()
+      });
+      demoMessagesStore.set(sampleChatId, [
+        {
+          id: "msg_seed_1",
+          sender: incomingPeer.phone,
+          text: "Hey, saw you online nearby. Want to chat?",
+          createdAt: Date.now() - 45000
+        }
+      ]);
+
+      refreshAllReactiveViews();
+    }
+
+    // -----------------------------------------------------------------------
+    // 7. REAL-TIME FIRESTORE LISTENERS (Users & Chats)
+    // -----------------------------------------------------------------------
+    if (db) {
+      // Listen to all users in real-time so online/offline/purple pings update live everywhere
+      onSnapshot(collection(db, "users"), (snapshot) => {
+        snapshot.forEach((docSnap) => {
+          const data = docSnap.data();
+          const phoneKey = data.phone || docSnap.id;
+          appState.allUsersMap.set(phoneKey, { ...data, phone: phoneKey });
+        });
+        refreshAllReactiveViews();
+      });
+
+      // Listen to all chats involving the current user
+      const chatsQuery = query(
+        collection(db, "chats"),
+        where("participants", "array-contains", currentUser.phone)
+      );
+
+      onSnapshot(chatsQuery, (snapshot) => {
+        const nextMap = new Map();
+        snapshot.forEach((docSnap) => {
+          nextMap.set(docSnap.id, { id: docSnap.id, ...docSnap.data() });
+        });
+
+        // If the currently open chat was deleted by the peer pressing X, close it immediately
+        if (appState.activeChatId && !nextMap.has(appState.activeChatId)) {
+          closeChatModalUI();
+          showToast("The other person ended and erased the chat.", "crimson");
+        }
+
+        appState.chatsMap = nextMap;
+        refreshAllReactiveViews();
+      });
+    } else {
+      initDemoSandboxData();
+    }
+
+    // Deterministic Chat ID for any pair of phone numbers
+    function getChatId(phoneA, phoneB) {
+      return [phoneA, phoneB].sort().join("__");
+    }
+
+    // -----------------------------------------------------------------------
+    // 8. GENDER FILTER MODAL & NEARBY PEOPLE DIRECTORY
+    // -----------------------------------------------------------------------
+    const searchNearbyBtn = document.getElementById("searchNearbyBtn");
+    const genderModal = document.getElementById("genderModal");
+    const closeGenderModalBtn = document.getElementById("closeGenderModalBtn");
+    const peopleListModal = document.getElementById("peopleListModal");
+    const closePeopleListBtn = document.getElementById("closePeopleListBtn");
+    const changeGenderFilterBtn = document.getElementById("changeGenderFilterBtn");
+    const listGenderBadge = document.getElementById("listGenderBadge");
+    const peopleListContainer = document.getElementById("peopleListContainer");
+
+    searchNearbyBtn.addEventListener("click", () => {
+      genderModal.classList.remove("hidden");
+    });
+
+    closeGenderModalBtn.addEventListener("click", () => {
+      genderModal.classList.add("hidden");
+    });
+
+    closePeopleListBtn.addEventListener("click", () => {
+      peopleListModal.classList.add("hidden");
+    });
+
+    changeGenderFilterBtn.addEventListener("click", () => {
+      peopleListModal.classList.add("hidden");
+      genderModal.classList.remove("hidden");
+    });
+
+    document.querySelectorAll(".gender-choice-btn").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const chosenGender = btn.dataset.filterGender;
+        appState.selectedFilterGender = chosenGender;
+        genderModal.classList.add("hidden");
+        listGenderBadge.textContent = chosenGender.toUpperCase();
+        renderPeopleList();
+        peopleListModal.classList.remove("hidden");
+      });
+    });
+
+    function renderPeopleList() {
+      if (!appState.selectedFilterGender) return;
+
+      const filteredUsers = Array.from(appState.allUsersMap.values()).filter(
+        (u) =>
+          u.phone !== currentUser.phone &&
+          u.gender &&
+          u.gender.toLowerCase() === appState.selectedFilterGender.toLowerCase()
+      );
+
+      peopleListContainer.innerHTML = "";
+
+      if (filteredUsers.length === 0) {
+        peopleListContainer.innerHTML = `
+          <div class="border-[1.5px] border-dashed border-ink/30 p-6 text-center space-y-1">
+            <p class="font-bold text-sm text-ink">No ${appState.selectedFilterGender} profiles found</p>
+            <p class="text-xs text-ink/60">New verified accounts matching this filter will appear here automatically.</p>
+          </div>
+        `;
+        return;
+      }
+
+      filteredUsers.forEach((peer) => {
+        const ping = getPresenceVisuals(peer);
+        const chatId = getChatId(currentUser.phone, peer.phone);
+        const existingChat = appState.chatsMap.get(chatId);
+
+        let btnLabel = "Connect";
+        let btnStyle = "bg-cobalt hover:bg-cobaltHover text-paper";
+        if (existingChat) {
+          btnLabel = existingChat.status === "active" ? "Open Chat" : "Pending";
+          btnStyle = existingChat.status === "active"
+            ? "bg-emeraldPing text-paper"
+            : "bg-bone text-ink";
+        }
+
+        const row = document.createElement("div");
+        row.className = "border-[1.5px] border-ink bg-paper p-3 flex items-center justify-between gap-3";
+        row.innerHTML = `
+          <div class="flex items-center gap-3 min-w-0">
+            <div class="relative flex items-center justify-center w-3.5 h-3.5 shrink-0">
+              ${ping.showHalo ? `<span class="ping-halo absolute inset-0 rounded-full ${ping.haloClass}"></span>` : ""}
+              <span class="relative w-3 h-3 rounded-full ${ping.dotClass} block"></span>
+            </div>
+            <div class="min-w-0">
+              <p class="font-bold text-sm text-ink truncate">${escapeHtml(peer.fullName)}</p>
+              <p class="font-mono text-[10px] font-semibold uppercase tracking-wider ${ping.textClass}">${ping.label}</p>
+            </div>
+          </div>
+          <button
+            type="button"
+            data-connect-phone="${escapeHtml(peer.phone)}"
+            class="connect-peer-btn tactile-btn px-3.5 py-2 ${btnStyle} font-mono text-xs font-bold uppercase tracking-wider shrink-0"
+          >
+            ${btnLabel}
+          </button>
+        `;
+        peopleListContainer.appendChild(row);
+      });
+
+      document.querySelectorAll(".connect-peer-btn").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          const targetPhone = btn.dataset.connectPhone;
+          peopleListModal.classList.add("hidden");
+          openChatWithPeer(targetPhone);
+        });
+      });
+    }
+
+    // -----------------------------------------------------------------------
+    // 9. ONE-MESSAGE FIRST & INFINITE LIVE CHAT POPUP MODAL
+    // -----------------------------------------------------------------------
+    const chatModal = document.getElementById("chatModal");
+    const chatPeerName = document.getElementById("chatPeerName");
+    const chatPeerGender = document.getElementById("chatPeerGender");
+    const chatPeerPingDot = document.getElementById("chatPeerPingDot");
+    const chatPeerPingHalo = document.getElementById("chatPeerPingHalo");
+    const chatPeerStatusText = document.getElementById("chatPeerStatusText");
+    const chatRuleText = document.getElementById("chatRuleText");
+    const chatMessagesContainer = document.getElementById("chatMessagesContainer");
+    const chatSendForm = document.getElementById("chatSendForm");
+    const chatMessageInput = document.getElementById("chatMessageInput");
+    const chatSendBtn = document.getElementById("chatSendBtn");
+    const closeAndWipeChatBtn = document.getElementById("closeAndWipeChatBtn");
+
+    function openChatWithPeer(peerPhone) {
+      const peer = appState.allUsersMap.get(peerPhone) || {
+        fullName: peerPhone,
+        gender: "USER",
+        phone: peerPhone,
+        online: false,
+        hidePresence: false
+      };
+
+      const chatId = getChatId(currentUser.phone, peerPhone);
+      appState.activeChatId = chatId;
+      appState.activePeerPhone = peerPhone;
+
+      updateChatHeaderAndLockState();
+      chatModal.classList.remove("hidden");
+      subscribeToChatMessages(chatId);
+    }
+
+    function updateChatHeaderAndLockState() {
+      if (!appState.activePeerPhone || !appState.activeChatId) return;
+
+      const peer = appState.allUsersMap.get(appState.activePeerPhone) || {
+        fullName: appState.activePeerPhone,
+        gender: "USER",
+        online: false,
+        hidePresence: false
+      };
+
+      const ping = getPresenceVisuals(peer);
+      chatPeerName.textContent = peer.fullName;
+      chatPeerGender.textContent = (peer.gender || "USER").toUpperCase();
+      chatPeerPingDot.className = `relative w-3 h-3 rounded-full ${ping.dotClass} block`;
+      chatPeerPingHalo.className = ping.showHalo
+        ? `ping-halo absolute inset-0 rounded-full ${ping.haloClass}`
+        : "hidden";
+      chatPeerStatusText.textContent = ping.label;
+      chatPeerStatusText.className = `font-mono text-[10px] uppercase tracking-wider font-semibold ${ping.textClass}`;
+
+      const chatDoc = appState.chatsMap.get(appState.activeChatId);
+
+      // Enforce 1-Message Rule until recipient replies
+      if (!chatDoc) {
+        // Brand new connection: user can send exactly 1 opening message
+        chatRuleText.textContent = "1 OPENING MESSAGE // UNLOCKS ON REPLY";
+        chatMessageInput.disabled = false;
+        chatSendBtn.disabled = false;
+        chatMessageInput.placeholder = "Send 1 opening message...";
+      } else if (chatDoc.status === "pending") {
+        if (chatDoc.initiator === currentUser.phone) {
+          // Initiator already sent their 1 allowed message; locked until peer replies
+          chatRuleText.textContent = "WAITING FOR REPLY // INPUT LOCKED";
+          chatMessageInput.disabled = true;
+          chatSendBtn.disabled = true;
+          chatMessageInput.value = "";
+          chatMessageInput.placeholder = "Request sent. Chat unlocks once they reply.";
+        } else {
+          // Current user is the recipient! Replying unlocks infinite chat
+          chatRuleText.textContent = "REPLY TO UNLOCK INFINITE CHAT";
+          chatMessageInput.disabled = false;
+          chatSendBtn.disabled = false;
+          chatMessageInput.placeholder = "Reply to accept & unlock unlimited chat...";
+        }
+      } else {
+        // Status === "active" -> Infinite messaging unlocked!
+        chatRuleText.textContent = "INFINITE LIVE WIRE ACTIVE";
+        chatMessageInput.disabled = false;
+        chatSendBtn.disabled = false;
+        chatMessageInput.placeholder = "Type a live message...";
+      }
+    }
+
+    function subscribeToChatMessages(chatId) {
+      if (appState.unsubMessages) {
+        appState.unsubMessages();
+        appState.unsubMessages = null;
+      }
+
+      if (db) {
+        const msgsQuery = query(
+          collection(db, "chats", chatId, "messages"),
+          orderBy("createdAt", "asc")
+        );
+        appState.unsubMessages = onSnapshot(msgsQuery, (snap) => {
+          const msgs = [];
+          snap.forEach((d) => msgs.push({ id: d.id, ...d.data() }));
+          renderChatMessages(msgs);
+          updateChatHeaderAndLockState();
+        });
+      } else {
+        const msgs = demoMessagesStore.get(chatId) || [];
+        renderChatMessages(msgs);
+        updateChatHeaderAndLockState();
+      }
+    }
+
+    function renderChatMessages(messages) {
+      chatMessagesContainer.innerHTML = "";
+
+      if (messages.length === 0) {
+        chatMessagesContainer.innerHTML = `
+          <div class="my-auto text-center p-4 border-[1.5px] border-dashed border-ink/25 bg-paper">
+            <p class="font-mono text-[11px] font-bold uppercase text-ink">Direct Request Channel</p>
+            <p class="text-xs text-ink/65 mt-1">
+              You may send <strong>one</strong> opening message. Once they reply, you can message infinitely. Pressing <strong>End (X)</strong> deletes all history permanently.
+            </p>
+          </div>
+        `;
+        return;
+      }
+
+      messages.forEach((m) => {
+        const isMine = m.sender === currentUser.phone;
+        const bubbleWrap = document.createElement("div");
+        bubbleWrap.className = `flex flex-col max-w-[82%] ${isMine ? "self-end items-end" : "self-start items-start"}`;
+
+        bubbleWrap.innerHTML = `
+          <div class="px-3.5 py-2.5 border-[1.5px] border-ink text-xs sm:text-sm leading-relaxed break-words ${
+            isMine ? "bg-cobalt text-paper" : "bg-paper text-ink"
+          }">
+            ${escapeHtml(m.text)}
+          </div>
+          <span class="font-mono text-[9px] uppercase text-ink/50 mt-1">
+            ${isMine ? "YOU" : "PEER"}
+          </span>
+        `;
+        chatMessagesContainer.appendChild(bubbleWrap);
+      });
+
+      chatMessagesContainer.scrollTop = chatMessagesContainer.scrollHeight;
+    }
+
+    // Handle Sending Message (1st Request Message OR Infinite Follow-up)
+    chatSendForm.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const text = chatMessageInput.value.trim();
+      if (!text || !appState.activeChatId || !appState.activePeerPhone) return;
+
+      const chatId = appState.activeChatId;
+      const peerPhone = appState.activePeerPhone;
+      const existingChat = appState.chatsMap.get(chatId);
+
+      // Guard: Initiator cannot send a 2nd message while status is still pending
+      if (existingChat && existingChat.status === "pending" && existingChat.initiator === currentUser.phone) {
+        showToast("Wait for their reply before sending another message.", "crimson");
+        return;
+      }
+
+      chatMessageInput.value = "";
+
+      if (db) {
+        try {
+          const chatRef = doc(db, "chats", chatId);
+          if (!existingChat) {
+            // Create pending request document with first message
+            await setDoc(chatRef, {
+              participants: [currentUser.phone, peerPhone],
+              initiator: currentUser.phone,
+              recipient: peerPhone,
+              status: "pending",
+              firstMessageText: text,
+              updatedAt: serverTimestamp()
+            });
+          } else if (existingChat.status === "pending" && existingChat.recipient === currentUser.phone) {
+            // Recipient replied -> Unlock infinite messaging!
+            await updateDoc(chatRef, {
+              status: "active",
+              updatedAt: serverTimestamp()
+            });
+          } else {
+            await updateDoc(chatRef, {
+              updatedAt: serverTimestamp()
+            });
+          }
+
+          await addDoc(collection(db, "chats", chatId, "messages"), {
+            sender: currentUser.phone,
+            text,
+            createdAt: serverTimestamp()
+          });
+        } catch (err) {
+          console.error("Send message failed:", err);
+          showToast("Message failed to send. Check connection.", "crimson");
+        }
+      } else {
+        // Demo Sandbox Mode
+        if (!existingChat) {
+          appState.chatsMap.set(chatId, {
+            id: chatId,
+            participants: [currentUser.phone, peerPhone],
+            initiator: currentUser.phone,
+            recipient: peerPhone,
+            status: "pending",
+            firstMessageText: text,
+            updatedAt: Date.now()
+          });
+        } else if (existingChat.status === "pending" && existingChat.recipient === currentUser.phone) {
+          existingChat.status = "active";
+          existingChat.updatedAt = Date.now();
+          appState.chatsMap.set(chatId, existingChat);
+          showToast("Chat unlocked to infinite messaging!", "emerald");
+        }
+
+        const list = demoMessagesStore.get(chatId) || [];
+        list.push({
+          id: "msg_" + Date.now(),
+          sender: currentUser.phone,
+          text,
+          createdAt: Date.now()
+        });
+        demoMessagesStore.set(chatId, list);
+
+        renderChatMessages(list);
+        updateChatHeaderAndLockState();
+        refreshAllReactiveViews();
+      }
+    });
+
+    // -----------------------------------------------------------------------
+    // 10. CROSS (X) BUTTON: PERMANENTLY DELETE ENTIRE CHAT ON CLOSE
+    // -----------------------------------------------------------------------
+    async function deleteEntireChat(chatId) {
+      if (!chatId) return;
+
+      if (db) {
+        try {
+          // Delete all messages inside subcollection first
+          const msgsSnap = await getDocs(collection(db, "chats", chatId, "messages"));
+          const deletePromises = msgsSnap.docs.map((d) => deleteDoc(d.ref));
+          await Promise.all(deletePromises);
+          // Delete parent chat document
+          await deleteDoc(doc(db, "chats", chatId));
+        } catch (err) {
+          console.error("Failed to erase chat:", err);
+        }
+      } else {
+        demoMessagesStore.delete(chatId);
+        appState.chatsMap.delete(chatId);
+        refreshAllReactiveViews();
+      }
+    }
+
+    function closeChatModalUI() {
+      if (appState.unsubMessages) {
+        appState.unsubMessages();
+        appState.unsubMessages = null;
+      }
+      appState.activeChatId = null;
+      appState.activePeerPhone = null;
+      chatModal.classList.add("hidden");
+    }
+
+    closeAndWipeChatBtn.addEventListener("click", async () => {
+      const targetChatId = appState.activeChatId;
+      closeChatModalUI();
+      if (targetChatId) {
+        await deleteEntireChat(targetChatId);
+        showToast("Chat closed and all messages permanently erased.", "crimson");
+      }
+    });
+
+    // -----------------------------------------------------------------------
+    // 11. HAMBURGER MENU DRAWER: PENDING REQUESTS (REPLY / DELETE) & ACTIVE
+    // -----------------------------------------------------------------------
+    const openDrawerBtn = document.getElementById("openDrawerBtn");
+    const closeDrawerBtn = document.getElementById("closeDrawerBtn");
+    const requestsDrawerBackdrop = document.getElementById("requestsDrawerBackdrop");
+    const drawerTabRequests = document.getElementById("drawerTabRequests");
+    const drawerTabActive = document.getElementById("drawerTabActive");
+    const drawerListContainer = document.getElementById("drawerListContainer");
+    const pendingBadge = document.getElementById("pendingBadge");
+    const tabPendingCount = document.getElementById("tabPendingCount");
+    const tabActiveCount = document.getElementById("tabActiveCount");
+    const footerActiveCount = document.getElementById("footerActiveCount");
+
+    openDrawerBtn.addEventListener("click", () => {
+      requestsDrawerBackdrop.classList.remove("hidden");
+      renderDrawerItems();
+    });
+
+    closeDrawerBtn.addEventListener("click", () => {
+      requestsDrawerBackdrop.classList.add("hidden");
+    });
+
+    requestsDrawerBackdrop.addEventListener("click", (e) => {
+      if (e.target === requestsDrawerBackdrop) {
+        requestsDrawerBackdrop.classList.add("hidden");
+      }
+    });
+
+    drawerTabRequests.addEventListener("click", () => {
+      appState.activeDrawerTab = "pending";
+      drawerTabRequests.className = "py-2.5 px-3 font-mono text-xs font-bold uppercase border-r-[1.5px] border-ink bg-paper text-ink";
+      drawerTabActive.className = "py-2.5 px-3 font-mono text-xs font-bold uppercase bg-bone text-ink/60 hover:text-ink";
+      renderDrawerItems();
+    });
+
+    drawerTabActive.addEventListener("click", () => {
+      appState.activeDrawerTab = "active";
+      drawerTabActive.className = "py-2.5 px-3 font-mono text-xs font-bold uppercase bg-paper text-ink";
+      drawerTabRequests.className = "py-2.5 px-3 font-mono text-xs font-bold uppercase border-r-[1.5px] border-ink bg-bone text-ink/60 hover:text-ink";
+      renderDrawerItems();
+    });
+
+    function getCategorizedChats() {
+      const incomingPending = [];
+      const activeThreads = [];
+
+      appState.chatsMap.forEach((chat) => {
+        if (chat.status === "pending" && chat.recipient === currentUser.phone) {
+          incomingPending.push(chat);
+        } else if (chat.status === "active") {
+          activeThreads.push(chat);
+        }
+      });
+
+      return { incomingPending, activeThreads };
+    }
+
+    function renderDrawerItems() {
+      const { incomingPending, activeThreads } = getCategorizedChats();
+
+      // Update counters everywhere
+      tabPendingCount.textContent = incomingPending.length;
+      tabActiveCount.textContent = activeThreads.length;
+      footerActiveCount.textContent = `${activeThreads.length} ACTIVE THREAD${activeThreads.length === 1 ? "" : "S"}`;
+
+      if (incomingPending.length > 0) {
+        pendingBadge.textContent = incomingPending.length;
+        pendingBadge.classList.remove("hidden");
+      } else {
+        pendingBadge.classList.add("hidden");
+      }
+
+      drawerListContainer.innerHTML = "";
+
+      if (appState.activeDrawerTab === "pending") {
+        if (incomingPending.length === 0) {
+          drawerListContainer.innerHTML = `
+            <div class="border-[1.5px] border-dashed border-ink/30 p-6 text-center space-y-1">
+              <p class="font-bold text-sm text-ink">No pending requests</p>
+              <p class="text-xs text-ink/60">When someone sends you an opening message, it will appear here to reply or delete.</p>
+            </div>
+          `;
+          return;
+        }
+
+        incomingPending.forEach((chat) => {
+          const senderPhone = chat.initiator;
+          const sender = appState.allUsersMap.get(senderPhone) || {
+            fullName: senderPhone,
+            gender: "USER",
+            online: false,
+            hidePresence: false
+          };
+          const ping = getPresenceVisuals(sender);
+
+          const card = document.createElement("div");
+          card.className = "border-2 border-ink bg-paper p-3.5 space-y-3 shadow-tactileSm";
+          card.innerHTML = `
+            <div class="flex items-center justify-between gap-2">
+              <div class="flex items-center gap-2.5 min-w-0">
+                <span class="w-2.5 h-2.5 rounded-full ${ping.dotClass} shrink-0"></span>
+                <span class="font-extrabold text-sm text-ink truncate">${escapeHtml(sender.fullName)}</span>
+                <span class="font-mono text-[10px] font-bold uppercase px-1.5 py-0.5 bg-bone border border-ink shrink-0">${escapeHtml(sender.gender || "USER")}</span>
+              </div>
+              <span class="font-mono text-[10px] font-bold uppercase ${ping.textClass} shrink-0">${ping.label}</span>
+            </div>
+
+            <div class="p-2.5 bg-bone border border-ink/20 text-xs text-ink leading-relaxed break-words">
+              "${escapeHtml(chat.firstMessageText || "Sent a connection request.")}"
+            </div>
+
+            <div class="grid grid-cols-2 gap-2">
+              <button 
+                type="button" 
+                data-reply-chat="${escapeHtml(chat.id)}" 
+                data-reply-peer="${escapeHtml(senderPhone)}"
+                class="reply-req-btn tactile-btn py-2 px-3 bg-cobalt hover:bg-cobaltHover text-paper font-mono text-xs font-bold uppercase"
+              >
+                Reply
+              </button>
+              <button 
+                type="button" 
+                data-delete-chat="${escapeHtml(chat.id)}"
+                class="delete-req-btn tactile-btn py-2 px-3 bg-paper hover:bg-crimson hover:text-paper text-crimson font-mono text-xs font-bold uppercase"
+              >
+                Delete
+              </button>
+            </div>
+          `;
+          drawerListContainer.appendChild(card);
+        });
+
+        document.querySelectorAll(".reply-req-btn").forEach((btn) => {
+          btn.addEventListener("click", () => {
+            const peerPhone = btn.dataset.replyPeer;
+            requestsDrawerBackdrop.classList.add("hidden");
+            openChatWithPeer(peerPhone);
+          });
+        });
+
+        document.querySelectorAll(".delete-req-btn").forEach((btn) => {
+          btn.addEventListener("click", async () => {
+            const chatId = btn.dataset.deleteChat;
+            await deleteEntireChat(chatId);
+            showToast("Request deleted and erased.", "crimson");
+          });
+        });
+      } else {
+        // Active Chats Tab
+        if (activeThreads.length === 0) {
+          drawerListContainer.innerHTML = `
+            <div class="border-[1.5px] border-dashed border-ink/30 p-6 text-center space-y-1">
+              <p class="font-bold text-sm text-ink">No active threads</p>
+              <p class="text-xs text-ink/60">Accepted conversations stay open here until either person closes with X.</p>
+            </div>
+          `;
+          return;
+        }
+
+        activeThreads.forEach((chat) => {
+          const peerPhone = chat.participants.find((p) => p !== currentUser.phone);
+          const peer = appState.allUsersMap.get(peerPhone) || {
+            fullName: peerPhone,
+            gender: "USER",
+            online: false,
+            hidePresence: false
+          };
+          const ping = getPresenceVisuals(peer);
+
+          const card = document.createElement("div");
+          card.className = "border-[1.5px] border-ink bg-paper p-3 flex items-center justify-between gap-2";
+          card.innerHTML = `
+            <div class="flex items-center gap-2.5 min-w-0">
+              <span class="w-2.5 h-2.5 rounded-full ${ping.dotClass} shrink-0"></span>
+              <div class="min-w-0">
+                <p class="font-bold text-sm text-ink truncate">${escapeHtml(peer.fullName)}</p>
+                <p class="font-mono text-[10px] font-semibold uppercase ${ping.textClass}">${ping.label}</p>
+              </div>
+            </div>
+            <button 
+              type="button" 
+              data-open-active-peer="${escapeHtml(peerPhone)}"
+              class="open-active-btn tactile-btn py-1.5 px-3 bg-emeraldPing text-paper font-mono text-xs font-bold uppercase shrink-0"
+            >
+              Open
+            </button>
+          `;
+          drawerListContainer.appendChild(card);
+        });
+
+        document.querySelectorAll(".open-active-btn").forEach((btn) => {
+          btn.addEventListener("click", () => {
+            const peerPhone = btn.dataset.openActivePeer;
+            requestsDrawerBackdrop.classList.add("hidden");
+            openChatWithPeer(peerPhone);
+          });
+        });
+      }
+    }
+
+    // Refresh all visible UI components whenever Firestore or state updates
+    function refreshAllReactiveViews() {
+      renderDrawerItems();
+      if (!peopleListModal.classList.contains("hidden")) {
+        renderPeopleList();
+      }
+      if (!chatModal.classList.contains("hidden")) {
+        updateChatHeaderAndLockState();
+      }
+    }
+
+    // -----------------------------------------------------------------------
+    // 12. LOGOUT HANDLER & UTILITIES
+    // -----------------------------------------------------------------------
+    document.getElementById("logoutBtn").addEventListener("click", async () => {
+      appState.online = false;
+      await syncSelfPresenceToBackend();
+      try {
+        sessionStorage.removeItem("relay_active_user");
+      } catch (_) {}
+      window.location.href = "index.html";
+    });
+
+    const toastBar = document.getElementById("toastBar");
+    const toastDot = document.getElementById("toastDot");
+    const toastMessage = document.getElementById("toastMessage");
+    let toastTimer = null;
+
+    function showToast(msg, color = "cobalt") {
+      toastMessage.textContent = msg;
+      const dotColors = {
+        cobalt: "bg-cobalt",
+        crimson: "bg-crimson",
+        emerald: "bg-emeraldPing",
+        stealth: "bg-stealthPing"
+      };
+      toastDot.className = `w-2 h-2 rounded-full ${dotColors[color] || "bg-cobalt"} shrink-0`;
+      toastBar.classList.remove("hidden");
+
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => {
+        toastBar.classList.add("hidden");
+      }, 3000);
+    }
+
+    function escapeHtml(str) {
+      if (!str) return "";
+      return String(str)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+    }
+  </script>
+</body>
+</html>

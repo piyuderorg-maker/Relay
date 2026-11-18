@@ -1,0 +1,1392 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>RELAY — Direct Line Authentication</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Google Fonts: Plus Jakarta Sans & JetBrains Mono for technical precision -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['"Plus Jakarta Sans"', 'system-ui', '-apple-system', 'sans-serif'],
+            mono: ['"JetBrains Mono"', 'monospace'],
+          },
+          colors: {
+            ink: '#0D0E11',
+            obsidian: '#14161B',
+            bone: '#F7F6F2',
+            paper: '#FFFFFF',
+            cobalt: '#1D4ED8',
+            cobaltHover: '#1E40AF',
+            vermilion: '#E11D48',
+            emeraldSignal: '#059669',
+            slateBorder: '#D6D5CE',
+          },
+          boxShadow: {
+            tactile: '4px 4px 0px 0px #0D0E11',
+            tactileSm: '2px 2px 0px 0px #0D0E11',
+            tactileCobalt: '4px 4px 0px 0px #1D4ED8',
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    /* Strict Zero-Scroll Viewport Enforcement */
+    html, body {
+      height: 100dvh;
+      width: 100vw;
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+      background-color: #0D0E11;
+      color: #0D0E11;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+
+    /* Architectural Grid Background on Left Panel */
+    .editorial-grid {
+      background-size: 36px 36px;
+      background-image: 
+        linear-gradient(to right, rgba(247, 246, 242, 0.06) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(247, 246, 242, 0.06) 1px, transparent 1px);
+    }
+
+    /* Smooth Step & View Transitions */
+    .step-panel {
+      transition: opacity 240ms cubic-bezier(0.22, 1, 0.36, 1), transform 260ms cubic-bezier(0.22, 1, 0.36, 1);
+    }
+    .step-hidden {
+      display: none;
+      opacity: 0;
+      transform: translateX(10px);
+    }
+    .step-active {
+      display: flex;
+      opacity: 1;
+      transform: translateX(0);
+    }
+
+    /* Custom Tactile Input Focus */
+    .tactile-input {
+      border: 1.5px solid #0D0E11;
+      background-color: #FFFFFF;
+      transition: transform 120ms ease, box-shadow 120ms ease, border-color 120ms ease;
+    }
+    .tactile-input:focus {
+      outline: none;
+      border-color: #1D4ED8;
+      box-shadow: 3px 3px 0px 0px #1D4ED8;
+      transform: translate(-1px, -1px);
+    }
+
+    /* Custom Button Press Physics */
+    .tactile-btn {
+      border: 1.5px solid #0D0E11;
+      transition: transform 100ms ease, box-shadow 100ms ease, background-color 150ms ease;
+    }
+    .tactile-btn:hover:not(:disabled) {
+      transform: translate(-1.5px, -1.5px);
+      box-shadow: 4px 4px 0px 0px #0D0E11;
+    }
+    .tactile-btn:active:not(:disabled) {
+      transform: translate(1.5px, 1.5px);
+      box-shadow: 1px 1px 0px 0px #0D0E11;
+    }
+    .tactile-btn:disabled {
+      opacity: 0.55;
+      cursor: not-allowed;
+    }
+
+    /* Subtle Wireframe Pulse Animation */
+    @keyframes signalPing {
+      0% { transform: scale(0.95); opacity: 0.9; }
+      70% { transform: scale(1.65); opacity: 0; }
+      100% { transform: scale(1.65); opacity: 0; }
+    }
+    .signal-ring {
+      animation: signalPing 2.4s cubic-bezier(0, 0, 0.2, 1) infinite;
+    }
+
+    @keyframes dashFlow {
+      to { stroke-dashoffset: -24; }
+    }
+    .wire-flow {
+      stroke-dasharray: 6 6;
+      animation: dashFlow 1.4s linear infinite;
+    }
+
+    /* Custom Date Input Clean Styling */
+    input[type="date"]::-webkit-calendar-picker-indicator {
+      cursor: pointer;
+      opacity: 0.75;
+    }
+    input[type="date"]::-webkit-calendar-picker-indicator:hover {
+      opacity: 1;
+    }
+  </style>
+</head>
+<body class="font-sans select-none">
+
+  <!-- Main Full-Viewport Split Container -->
+  <main class="h-[100dvh] w-full flex flex-col lg:flex-row overflow-hidden bg-ink">
+
+    <!-- =====================================================================
+         LEFT PANEL: DESKTOP EDITORIAL MANIFESTO & LIVE WIREFRAME GRAPHIC
+         Hidden on mobile to guarantee zero-scroll compact ergonomics
+    ====================================================================== -->
+    <section class="hidden lg:flex lg:w-[46%] xl:w-[48%] h-full bg-ink text-bone editorial-grid border-r-[1.5px] border-bone/20 flex-col justify-between p-10 xl:p-14 relative overflow-hidden">
+      
+      <!-- Top Brand Mark -->
+      <div class="flex items-center justify-between">
+        <div class="flex items-center gap-3">
+          <div class="w-9 h-9 bg-cobalt border-[1.5px] border-bone flex items-center justify-center rounded-sm">
+            <svg class="w-5 h-5 text-bone" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="square">
+              <path d="M4 7h10M4 12h16M4 17h7" />
+              <circle cx="18" cy="17" r="2.5" fill="currentColor" />
+            </svg>
+          </div>
+          <span class="font-extrabold tracking-tight text-xl text-bone">RELAY</span>
+        </div>
+        <span id="connectionBadge" class="font-mono text-[11px] uppercase tracking-widest px-2.5 py-1 border border-bone/25 bg-obsidian text-bone/80 rounded-sm flex items-center gap-2">
+          <span class="w-2 h-2 rounded-full bg-emeraldSignal inline-block"></span>
+          <span>1:1 ENCRYPTED WIRE</span>
+        </span>
+      </div>
+
+      <!-- Center Editorial Headline & Interactive Node Wireframe -->
+      <div class="my-auto space-y-8 max-w-lg">
+        <div class="space-y-4">
+          <p class="font-mono text-xs uppercase tracking-[0.2em] text-cobalt font-semibold">
+            // DIRECT PEER MESSAGING
+          </p>
+          <h1 class="text-4xl xl:text-5xl font-extrabold tracking-tight leading-[1.08] text-bone">
+            One number.<br/>
+            One account.<br/>
+            <span class="text-bone/55">Zero noise.</span>
+          </h1>
+          <p class="text-sm xl:text-base text-bone/70 leading-relaxed max-w-md font-normal">
+            Verified phone-bound identity ensures every live conversation connects directly to a real human on the other end—never duplicate handles or bots.
+          </p>
+        </div>
+
+        <!-- Crisp Geometric Wireframe Graphic -->
+        <div class="border-[1.5px] border-bone/20 bg-obsidian p-5 rounded-sm">
+          <div class="flex items-center justify-between font-mono text-[11px] text-bone/60 mb-4">
+            <span>NODE_A [YOU]</span>
+            <span class="text-cobalt">LIVE SOCKET // 12ms</span>
+            <span>NODE_B [PEER]</span>
+          </div>
+          <svg class="w-full h-20" viewBox="0 0 400 72" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <!-- Left Node -->
+            <rect x="8" y="14" width="44" height="44" rx="2" fill="#1D4ED8" stroke="#F7F6F2" stroke-width="1.5"/>
+            <circle cx="30" cy="36" r="6" fill="#F7F6F2"/>
+            
+            <!-- Connecting Animated Wire -->
+            <line x1="52" y1="36" x2="348" y2="36" stroke="#F7F6F2" stroke-opacity="0.25" stroke-width="1.5"/>
+            <line x1="52" y1="36" x2="348" y2="36" stroke="#1D4ED8" stroke-width="2.5" class="wire-flow"/>
+            
+            <!-- Center Packet Box -->
+            <rect x="164" y="22" width="72" height="28" rx="2" fill="#0D0E11" stroke="#F7F6F2" stroke-width="1.5"/>
+            <text x="200" y="40" text-anchor="middle" fill="#F7F6F2" font-family="JetBrains Mono, monospace" font-size="10" font-weight="600">SYNC_OK</text>
+
+            <!-- Right Node -->
+            <rect x="348" y="14" width="44" height="44" rx="2" fill="#14161B" stroke="#F7F6F2" stroke-width="1.5"/>
+            <circle cx="370" cy="36" r="6" fill="#059669"/>
+          </svg>
+        </div>
+      </div>
+
+      <!-- Bottom Editorial Footer -->
+      <div class="flex items-center justify-between border-t border-bone/15 pt-5 font-mono text-xs text-bone/55">
+        <span>UNIQUE PHONE REGISTRY</span>
+        <span>INSTANT HANDOFF &rarr; MAIN.HTML</span>
+      </div>
+    </section>
+
+    <!-- =====================================================================
+         RIGHT PANEL: ZERO-SCROLL INTERACTIVE AUTHENTICATION SURFACE
+    ====================================================================== -->
+    <section class="w-full lg:w-[54%] xl:w-[52%] h-full bg-bone flex flex-col justify-between p-4 sm:p-6 md:p-8 lg:p-10 overflow-hidden">
+      
+      <!-- Mobile-Only Compact Brand Header -->
+      <header class="flex lg:hidden items-center justify-between w-full max-w-md mx-auto pt-0.5">
+        <div class="flex items-center gap-2.5">
+          <div class="w-7 h-7 bg-cobalt border-[1.5px] border-ink flex items-center justify-center rounded-sm">
+            <svg class="w-4 h-4 text-paper" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="square">
+              <path d="M4 7h10M4 12h16M4 17h7" />
+            </svg>
+          </div>
+          <span class="font-extrabold tracking-tight text-base text-ink">RELAY</span>
+        </div>
+        <span class="font-mono text-[10px] uppercase tracking-wider px-2 py-0.5 border border-ink bg-paper text-ink rounded-sm">
+          DIRECT LINE
+        </span>
+      </header>
+
+      <!-- Centered Tactile Auth Card -->
+      <div class="w-full max-w-md mx-auto my-auto bg-paper border-[1.5px] border-ink shadow-tactile rounded-sm flex flex-col overflow-hidden">
+        
+        <!-- PERSISTENT TOP MODE SWITCHER (Create Account vs Sign In) -->
+        <div class="grid grid-cols-2 border-b-[1.5px] border-ink bg-bone">
+          <button 
+            type="button" 
+            id="tabSignup" 
+            class="py-3 px-4 text-xs sm:text-sm font-bold tracking-tight flex items-center justify-center gap-2 transition-colors border-r-[1.5px] border-ink bg-paper text-ink"
+          >
+            <span class="w-2 h-2 rounded-full bg-cobalt" id="dotSignup"></span>
+            <span>Create Account</span>
+          </button>
+          <button 
+            type="button" 
+            id="tabLogin" 
+            class="py-3 px-4 text-xs sm:text-sm font-bold tracking-tight flex items-center justify-center gap-2 transition-colors bg-bone text-ink/60 hover:text-ink"
+          >
+            <span class="w-2 h-2 rounded-full bg-transparent border border-ink/40" id="dotLogin"></span>
+            <span>Sign In</span>
+          </button>
+        </div>
+
+        <!-- INLINE STATUS / ERROR BANNER -->
+        <div id="alertBanner" class="hidden px-4 py-2.5 border-b-[1.5px] border-ink text-xs font-medium flex items-center justify-between gap-2">
+          <div class="flex items-center gap-2">
+            <svg id="alertIcon" class="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+              <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+            </svg>
+            <span id="alertText">Status message</span>
+          </div>
+          <button type="button" id="closeAlertBtn" class="font-mono text-[11px] uppercase underline shrink-0">Dismiss</button>
+        </div>
+
+        <!-- CARD BODY CONTAINER -->
+        <div class="p-5 sm:p-7 flex flex-col justify-between">
+
+          <!-- ===============================================================
+               VIEW 1: SIGN UP MULTI-STEP WIZARD (Steps 1, 2, 3)
+          ================================================================ -->
+          <div id="signupContainer" class="flex flex-col">
+            
+            <!-- Step Progress Header -->
+            <div class="flex items-center justify-between mb-4 sm:mb-5">
+              <div>
+                <h2 id="signupTitle" class="text-lg sm:text-xl font-extrabold tracking-tight text-ink">Identity Details</h2>
+                <p id="signupSubtitle" class="text-xs text-ink/65 mt-0.5">Enter your name, gender, and date of birth.</p>
+              </div>
+              <div class="flex flex-col items-end">
+                <span id="stepCounter" class="font-mono text-xs font-semibold px-2 py-0.5 bg-ink text-paper rounded-sm">01 / 03</span>
+                <div class="flex gap-1 mt-1.5">
+                  <span id="progBar1" class="w-5 h-1 bg-cobalt transition-colors"></span>
+                  <span id="progBar2" class="w-5 h-1 bg-ink/15 transition-colors"></span>
+                  <span id="progBar3" class="w-5 h-1 bg-ink/15 transition-colors"></span>
+                </div>
+              </div>
+            </div>
+
+            <!-- STEP 1: FULL NAME, GENDER & DATE OF BIRTH -->
+            <form id="signupStep1" class="step-panel step-active flex-col gap-3.5" novalidate>
+              <div>
+                <label for="fullName" class="block font-mono text-[11px] font-semibold uppercase tracking-wider text-ink mb-1">Full Name</label>
+                <input 
+                  type="text" 
+                  id="fullName" 
+                  placeholder="e.g. Aarav Sharma" 
+                  autocomplete="name"
+                  class="tactile-input w-full px-3.5 py-2.5 text-sm font-medium text-ink rounded-sm placeholder:text-ink/35"
+                  required
+                />
+              </div>
+
+              <!-- Segmented Gender Selector -->
+              <div>
+                <label class="block font-mono text-[11px] font-semibold uppercase tracking-wider text-ink mb-1">Gender</label>
+                <div class="grid grid-cols-2 sm:grid-cols-4 gap-1.5" role="radiogroup" aria-label="Gender">
+                  <button type="button" data-gender="Male" class="gender-btn py-2 px-2 text-xs font-semibold border-[1.5px] border-ink bg-paper text-ink rounded-sm transition-all hover:bg-bone">Male</button>
+                  <button type="button" data-gender="Female" class="gender-btn py-2 px-2 text-xs font-semibold border-[1.5px] border-ink bg-paper text-ink rounded-sm transition-all hover:bg-bone">Female</button>
+                  <button type="button" data-gender="Non-binary" class="gender-btn py-2 px-2 text-xs font-semibold border-[1.5px] border-ink bg-paper text-ink rounded-sm transition-all hover:bg-bone">Non-binary</button>
+                  <button type="button" data-gender="Prefer not to say" class="gender-btn py-2 px-1.5 text-[11px] font-semibold border-[1.5px] border-ink bg-paper text-ink rounded-sm transition-all hover:bg-bone truncate">Undisclosed</button>
+                </div>
+                <input type="hidden" id="selectedGender" value="" />
+              </div>
+
+              <!-- Date of Birth -->
+              <div>
+                <label for="dobInput" class="block font-mono text-[11px] font-semibold uppercase tracking-wider text-ink mb-1">
+                  Date of Birth <span class="text-ink/45 font-normal">(Also used for recovery)</span>
+                </label>
+                <input 
+                  type="date" 
+                  id="dobInput" 
+                  class="tactile-input w-full px-3.5 py-2.5 text-sm font-medium text-ink rounded-sm"
+                  required
+                />
+              </div>
+
+              <button 
+                type="submit" 
+                class="tactile-btn mt-1 w-full py-2.5 px-4 bg-cobalt text-paper font-bold text-sm rounded-sm flex items-center justify-center gap-2 hover:bg-cobaltHover"
+              >
+                <span>Continue to Phone</span>
+                <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="square">
+                  <path d="M5 12h14M13 6l6 6-6 6"/>
+                </svg>
+              </button>
+            </form>
+
+            <!-- STEP 2: UNIQUE PHONE NUMBER VERIFICATION -->
+            <form id="signupStep2" class="step-panel step-hidden flex-col gap-3.5" novalidate>
+              <div>
+                <label for="signupPhone" class="block font-mono text-[11px] font-semibold uppercase tracking-wider text-ink mb-1">Mobile Number</label>
+                <div class="flex gap-2">
+                  <select 
+                    id="signupCountryCode" 
+                    aria-label="Country Code"
+                    class="tactile-input px-2.5 py-2.5 text-sm font-mono font-semibold text-ink rounded-sm bg-bone shrink-0"
+                  >
+                    <option value="+91">+91 IN</option>
+                    <option value="+1">+1 US</option>
+                    <option value="+44">+44 UK</option>
+                    <option value="+61">+61 AU</option>
+                    <option value="+81">+81 JP</option>
+                    <option value="+49">+49 DE</option>
+                  </select>
+                  <input 
+                    type="tel" 
+                    id="signupPhone" 
+                    inputmode="numeric"
+                    placeholder="9876543210" 
+                    autocomplete="tel-national"
+                    class="tactile-input w-full px-3.5 py-2.5 text-sm font-mono font-medium text-ink rounded-sm placeholder:text-ink/35"
+                    required
+                  />
+                </div>
+                <p class="text-[11px] text-ink/60 mt-1.5 leading-snug">
+                  Checked against our live registry to ensure strictly one account per number.
+                </p>
+              </div>
+
+              <div class="flex gap-2.5 mt-2">
+                <button 
+                  type="button" 
+                  id="backToStep1" 
+                  class="tactile-btn py-2.5 px-3.5 bg-bone text-ink font-bold text-sm rounded-sm flex items-center justify-center gap-1.5"
+                >
+                  <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="square">
+                    <path d="M19 12H5M11 18l-6-6 6-6"/>
+                  </svg>
+                  <span>Back</span>
+                </button>
+                <button 
+                  type="submit" 
+                  id="verifyPhoneBtn"
+                  class="tactile-btn flex-1 py-2.5 px-4 bg-cobalt text-paper font-bold text-sm rounded-sm flex items-center justify-center gap-2 hover:bg-cobaltHover"
+                >
+                  <span id="verifyPhoneBtnText">Verify Number</span>
+                  <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="square">
+                    <path d="M5 12h14M13 6l6 6-6 6"/>
+                  </svg>
+                </button>
+              </div>
+            </form>
+
+            <!-- STEP 3: SET PASSWORD & COMPLETE REGISTRATION -->
+            <form id="signupStep3" class="step-panel step-hidden flex-col gap-3" novalidate>
+              <div>
+                <div class="flex items-center justify-between mb-1">
+                  <label for="newPassword" class="font-mono text-[11px] font-semibold uppercase tracking-wider text-ink">Create Password</label>
+                  <span id="strengthLabel" class="font-mono text-[10px] uppercase font-semibold text-ink/50">Min 6 chars</span>
+                </div>
+                <div class="relative">
+                  <input 
+                    type="password" 
+                    id="newPassword" 
+                    placeholder="Enter strong password" 
+                    autocomplete="new-password"
+                    class="tactile-input w-full pl-3.5 pr-10 py-2.5 text-sm font-medium text-ink rounded-sm placeholder:text-ink/35"
+                    required
+                  />
+                  <button type="button" data-toggle="newPassword" class="toggle-eye absolute right-2.5 top-1/2 -translate-y-1/2 p-1 text-ink/60 hover:text-ink" aria-label="Toggle password visibility">
+                    <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>
+                    </svg>
+                  </button>
+                </div>
+                <!-- Password Strength Meter -->
+                <div class="grid grid-cols-4 gap-1 mt-1.5">
+                  <div id="str1" class="h-1 bg-ink/15 transition-colors"></div>
+                  <div id="str2" class="h-1 bg-ink/15 transition-colors"></div>
+                  <div id="str3" class="h-1 bg-ink/15 transition-colors"></div>
+                  <div id="str4" class="h-1 bg-ink/15 transition-colors"></div>
+                </div>
+              </div>
+
+              <div>
+                <label for="confirmPassword" class="block font-mono text-[11px] font-semibold uppercase tracking-wider text-ink mb-1">Confirm Password</label>
+                <div class="relative">
+                  <input 
+                    type="password" 
+                    id="confirmPassword" 
+                    placeholder="Re-enter password" 
+                    autocomplete="new-password"
+                    class="tactile-input w-full pl-3.5 pr-10 py-2.5 text-sm font-medium text-ink rounded-sm placeholder:text-ink/35"
+                    required
+                  />
+                  <button type="button" data-toggle="confirmPassword" class="toggle-eye absolute right-2.5 top-1/2 -translate-y-1/2 p-1 text-ink/60 hover:text-ink" aria-label="Toggle confirm password visibility">
+                    <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>
+                    </svg>
+                  </button>
+                </div>
+              </div>
+
+              <div class="flex gap-2.5 mt-1.5">
+                <button 
+                  type="button" 
+                  id="backToStep2" 
+                  class="tactile-btn py-2.5 px-3.5 bg-bone text-ink font-bold text-sm rounded-sm flex items-center justify-center gap-1.5"
+                >
+                  <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="square">
+                    <path d="M19 12H5M11 18l-6-6 6-6"/>
+                  </svg>
+                  <span>Back</span>
+                </button>
+                <button 
+                  type="submit" 
+                  id="completeSignupBtn"
+                  class="tactile-btn flex-1 py-2.5 px-4 bg-ink text-paper font-bold text-sm rounded-sm flex items-center justify-center gap-2 hover:bg-cobalt"
+                >
+                  <span id="completeSignupText">Complete Setup</span>
+                  <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="square">
+                    <polyline points="20 6 9 17 4 12"/>
+                  </svg>
+                </button>
+              </div>
+            </form>
+          </div>
+
+          <!-- ===============================================================
+               VIEW 2: SIGN IN (LOGIN WITH PHONE NUMBER & PASSWORD)
+          ================================================================ -->
+          <div id="loginContainer" class="hidden flex-col">
+            <div class="mb-4 sm:mb-5">
+              <h2 class="text-lg sm:text-xl font-extrabold tracking-tight text-ink">Welcome Back</h2>
+              <p class="text-xs text-ink/65 mt-0.5">Sign in with your registered phone number and password.</p>
+            </div>
+
+            <form id="loginForm" class="flex flex-col gap-3.5" novalidate>
+              <div>
+                <label for="loginPhone" class="block font-mono text-[11px] font-semibold uppercase tracking-wider text-ink mb-1">Registered Phone</label>
+                <div class="flex gap-2">
+                  <select 
+                    id="loginCountryCode" 
+                    aria-label="Login Country Code"
+                    class="tactile-input px-2.5 py-2.5 text-sm font-mono font-semibold text-ink rounded-sm bg-bone shrink-0"
+                  >
+                    <option value="+91">+91 IN</option>
+                    <option value="+1">+1 US</option>
+                    <option value="+44">+44 UK</option>
+                    <option value="+61">+61 AU</option>
+                    <option value="+81">+81 JP</option>
+                    <option value="+49">+49 DE</option>
+                  </select>
+                  <input 
+                    type="tel" 
+                    id="loginPhone" 
+                    inputmode="numeric"
+                    placeholder="9876543210" 
+                    autocomplete="tel-national"
+                    class="tactile-input w-full px-3.5 py-2.5 text-sm font-mono font-medium text-ink rounded-sm placeholder:text-ink/35"
+                    required
+                  />
+                </div>
+              </div>
+
+              <div>
+                <div class="flex items-center justify-between mb-1">
+                  <label for="loginPassword" class="font-mono text-[11px] font-semibold uppercase tracking-wider text-ink">Password</label>
+                </div>
+                <div class="relative">
+                  <input 
+                    type="password" 
+                    id="loginPassword" 
+                    placeholder="Enter your password" 
+                    autocomplete="current-password"
+                    class="tactile-input w-full pl-3.5 pr-10 py-2.5 text-sm font-medium text-ink rounded-sm placeholder:text-ink/35"
+                    required
+                  />
+                  <button type="button" data-toggle="loginPassword" class="toggle-eye absolute right-2.5 top-1/2 -translate-y-1/2 p-1 text-ink/60 hover:text-ink" aria-label="Toggle login password visibility">
+                    <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>
+                    </svg>
+                  </button>
+                </div>
+                <div class="flex justify-end mt-1.5">
+                  <button type="button" id="openResetBtn" class="text-xs font-semibold text-cobalt hover:underline">
+                    Forgot password?
+                  </button>
+                </div>
+              </div>
+
+              <button 
+                type="submit" 
+                id="loginSubmitBtn"
+                class="tactile-btn mt-1 w-full py-2.5 px-4 bg-cobalt text-paper font-bold text-sm rounded-sm flex items-center justify-center gap-2 hover:bg-cobaltHover"
+              >
+                <span id="loginBtnText">Enter Live Room</span>
+                <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="square">
+                  <path d="M5 12h14M13 6l6 6-6 6"/>
+                </svg>
+              </button>
+            </form>
+          </div>
+
+          <!-- ===============================================================
+               VIEW 3: PASSWORD RESET VIA DATE OF BIRTH
+          ================================================================ -->
+          <div id="resetContainer" class="hidden flex-col">
+            <div class="flex items-start justify-between mb-4">
+              <div>
+                <h2 class="text-lg sm:text-xl font-extrabold tracking-tight text-ink">Reset Password</h2>
+                <p id="resetSubtitle" class="text-xs text-ink/65 mt-0.5">Verify ownership with your phone and date of birth.</p>
+              </div>
+              <button type="button" id="cancelResetBtn" class="font-mono text-[11px] uppercase px-2 py-1 border border-ink bg-bone hover:bg-ink hover:text-paper transition-colors rounded-sm">
+                &larr; Sign In
+              </button>
+            </div>
+
+            <!-- Reset Step A: Verify Phone + DOB -->
+            <form id="resetVerifyForm" class="step-panel step-active flex-col gap-3.5" novalidate>
+              <div>
+                <label for="resetPhone" class="block font-mono text-[11px] font-semibold uppercase tracking-wider text-ink mb-1">Registered Phone</label>
+                <div class="flex gap-2">
+                  <select 
+                    id="resetCountryCode" 
+                    aria-label="Reset Country Code"
+                    class="tactile-input px-2.5 py-2.5 text-sm font-mono font-semibold text-ink rounded-sm bg-bone shrink-0"
+                  >
+                    <option value="+91">+91 IN</option>
+                    <option value="+1">+1 US</option>
+                    <option value="+44">+44 UK</option>
+                    <option value="+61">+61 AU</option>
+                    <option value="+81">+81 JP</option>
+                    <option value="+49">+49 DE</option>
+                  </select>
+                  <input 
+                    type="tel" 
+                    id="resetPhone" 
+                    inputmode="numeric"
+                    placeholder="9876543210" 
+                    class="tactile-input w-full px-3.5 py-2.5 text-sm font-mono font-medium text-ink rounded-sm placeholder:text-ink/35"
+                    required
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label for="resetDob" class="block font-mono text-[11px] font-semibold uppercase tracking-wider text-ink mb-1">Date of Birth on File</label>
+                <input 
+                  type="date" 
+                  id="resetDob" 
+                  class="tactile-input w-full px-3.5 py-2.5 text-sm font-medium text-ink rounded-sm"
+                  required
+                />
+              </div>
+
+              <button 
+                type="submit" 
+                id="verifyDobBtn"
+                class="tactile-btn mt-1 w-full py-2.5 px-4 bg-ink text-paper font-bold text-sm rounded-sm flex items-center justify-center gap-2 hover:bg-cobalt"
+              >
+                <span id="verifyDobText">Verify Identity</span>
+                <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="square">
+                  <path d="M5 12h14M13 6l6 6-6 6"/>
+                </svg>
+              </button>
+            </form>
+
+            <!-- Reset Step B: Set New Password -->
+            <form id="resetNewPassForm" class="step-panel step-hidden flex-col gap-3.5" novalidate>
+              <div>
+                <label for="resetNewPassword" class="block font-mono text-[11px] font-semibold uppercase tracking-wider text-ink mb-1">New Password</label>
+                <div class="relative">
+                  <input 
+                    type="password" 
+                    id="resetNewPassword" 
+                    placeholder="Minimum 6 characters" 
+                    class="tactile-input w-full pl-3.5 pr-10 py-2.5 text-sm font-medium text-ink rounded-sm placeholder:text-ink/35"
+                    required
+                  />
+                  <button type="button" data-toggle="resetNewPassword" class="toggle-eye absolute right-2.5 top-1/2 -translate-y-1/2 p-1 text-ink/60 hover:text-ink" aria-label="Toggle new password visibility">
+                    <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>
+                    </svg>
+                  </button>
+                </div>
+              </div>
+
+              <div>
+                <label for="resetConfirmPassword" class="block font-mono text-[11px] font-semibold uppercase tracking-wider text-ink mb-1">Confirm New Password</label>
+                <input 
+                  type="password" 
+                  id="resetConfirmPassword" 
+                  placeholder="Re-enter new password" 
+                  class="tactile-input w-full px-3.5 py-2.5 text-sm font-medium text-ink rounded-sm placeholder:text-ink/35"
+                  required
+                />
+              </div>
+
+              <button 
+                type="submit" 
+                id="saveNewPassBtn"
+                class="tactile-btn mt-1 w-full py-2.5 px-4 bg-emeraldSignal text-paper font-bold text-sm rounded-sm flex items-center justify-center gap-2"
+              >
+                <span id="saveNewPassText">Update Password</span>
+                <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="square">
+                  <polyline points="20 6 9 17 4 12"/>
+                </svg>
+              </button>
+            </form>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- Compact Bottom Status Bar -->
+      <footer class="w-full max-w-md mx-auto flex items-center justify-between font-mono text-[11px] text-ink/60 pb-0.5">
+        <span id="storageModeLabel">MODE: DEMO SANDBOX</span>
+        <span>SESSION &rarr; MAIN.HTML</span>
+      </footer>
+    </section>
+
+  </main>
+
+  <!-- =====================================================================
+       STANDALONE PREVIEW REDIRECT OVERLAY (Shown if main.html is missing)
+  ====================================================================== -->
+  <div id="redirectOverlay" class="hidden fixed inset-0 z-50 bg-ink/90 flex items-center justify-center p-4">
+    <div class="w-full max-w-sm bg-paper border-[1.5px] border-ink shadow-tactile p-6 rounded-sm text-ink space-y-4">
+      <div class="flex items-center justify-between border-b border-ink/15 pb-3">
+        <span class="font-mono text-xs uppercase font-bold text-emeraldSignal">AUTHENTICATED</span>
+        <span class="font-mono text-xs text-ink/50">REDIRECTING</span>
+      </div>
+      <div class="space-y-1.5">
+        <h3 id="overlayUserName" class="text-lg font-extrabold tracking-tight">Welcome, User</h3>
+        <p id="overlayUserPhone" class="font-mono text-xs text-ink/70">+91 0000000000</p>
+        <p class="text-xs text-ink/75 pt-2 leading-relaxed">
+          Credentials verified and session token written. Attempting navigation to <code class="font-mono bg-bone px-1 py-0.5 border border-ink/20">main.html</code>...
+        </p>
+      </div>
+      <div class="pt-2 flex gap-2">
+        <a href="main.html" class="tactile-btn flex-1 py-2.5 px-3 bg-cobalt text-paper text-center font-bold text-xs rounded-sm">
+          Open main.html
+        </a>
+        <button type="button" id="closeOverlayBtn" class="tactile-btn py-2.5 px-3 bg-bone text-ink font-bold text-xs rounded-sm">
+          Stay Here
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- =====================================================================
+       FIREBASE v10 MODULAR SDK & APPLICATION LOGIC
+  ====================================================================== -->
+  <script type="module">
+    // -----------------------------------------------------------------------
+    // 1. FIREBASE CONFIGURATION & INITIALIZATION
+    // Replace the placeholder values below with your actual Firebase project config
+    // from Firebase Console -> Project Settings -> Your Apps -> SDK setup.
+    // -----------------------------------------------------------------------
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+    import { 
+      getFirestore, 
+      collection, 
+      doc, 
+      getDoc, 
+      setDoc, 
+      updateDoc, 
+      query, 
+      where, 
+      getDocs,
+      serverTimestamp 
+    } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+   const firebaseConfig = {
+    apiKey: "AIzaSyBWEi9qD_SOmDvDbqpwyiD5neq3gqAQeZI",
+    authDomain: "relay-texting-app.firebaseapp.com",
+    projectId: "relay-texting-app",
+    storageBucket: "relay-texting-app.firebasestorage.app",
+    messagingSenderId: "517678798429",
+    appId: "1:517678798429:web:e1421e665c226a95cadfb4",
+    measurementId: "G-7PV4T2FC7D"
+  };
+
+    // Detect whether real Firebase credentials have been pasted
+    const isFirebaseConfigured = 
+      firebaseConfig.apiKey && 
+      firebaseConfig.apiKey !== "YOUR_FIREBASE_API_KEY" &&
+      firebaseConfig.projectId !== "YOUR_PROJECT_ID";
+
+    let db = null;
+    if (isFirebaseConfigured) {
+      try {
+        const app = initializeApp(firebaseConfig);
+        db = getFirestore(app);
+      } catch (err) {
+        console.error("Firebase initialization failed, falling back to demo store:", err);
+      }
+    }
+
+    // Update UI mode indicator
+    const storageModeLabel = document.getElementById("storageModeLabel");
+    if (db) {
+      storageModeLabel.textContent = "DB: FIREBASE FIRESTORE";
+      storageModeLabel.classList.add("text-emeraldSignal", "font-semibold");
+    } else {
+      storageModeLabel.textContent = "DB: LOCAL PREVIEW STORE";
+    }
+
+    // -----------------------------------------------------------------------
+    // 2. DATA LAYER ABSTRACTION (Firestore + Seamless In-Memory/Session Fallback)
+    // Stores users keyed by normalized phone number (e.g. "+919876543210")
+    // -----------------------------------------------------------------------
+    const demoUserRegistry = new Map();
+
+    // Seed one demo account so users can immediately test duplicate detection or login
+    // Phone: +91 9999999999 | DOB: 2000-01-01 | Pass: demo123
+    async function hashPassword(plainText) {
+      const encoder = new TextEncoder();
+      const data = encoder.encode(plainText);
+      const hashBuffer = await crypto.subtle.digest("SHA-256", data);
+      return Array.from(new Uint8Array(hashBuffer))
+        .map(b => b.toString(16).padStart(2, "0"))
+        .join("");
+    }
+
+    (async () => {
+      const demoHash = await hashPassword("demo123");
+      demoUserRegistry.set("+919999999999", {
+        fullName: "Demo Peer",
+        gender: "Non-binary",
+        dob: "2000-01-01",
+        phone: "+919999999999",
+        passwordHash: demoHash
+      });
+    })();
+
+    /**
+     * Checks if a normalized phone number already exists in Firestore (or demo store).
+     * Returns user object if found, or null if unique/available.
+     */
+    async function findUserByPhone(normalizedPhone) {
+      if (db) {
+        // Direct document lookup by normalized phone ID guarantees O(1) uniqueness
+        const userRef = doc(db, "users", normalizedPhone);
+        const snap = await getDoc(userRef);
+        if (snap.exists()) {
+          return { id: snap.id, ...snap.data() };
+        }
+        // Fallback query check in case documents were created with auto-IDs
+        const q = query(collection(db, "users"), where("phone", "==", normalizedPhone));
+        const querySnap = await getDocs(q);
+        if (!querySnap.empty) {
+          const firstDoc = querySnap.docs[0];
+          return { id: firstDoc.id, ...firstDoc.data() };
+        }
+        return null;
+      } else {
+        await new Promise(r => setTimeout(r, 280)); // Realistic network feel
+        return demoUserRegistry.get(normalizedPhone) || null;
+      }
+    }
+
+    /**
+     * Creates a new user document in Firestore (or demo store).
+     */
+    async function createUserAccount(userRecord) {
+      if (db) {
+        const userRef = doc(db, "users", userRecord.phone);
+        await setDoc(userRef, {
+          ...userRecord,
+          createdAt: serverTimestamp()
+        });
+      } else {
+        await new Promise(r => setTimeout(r, 300));
+        demoUserRegistry.set(userRecord.phone, userRecord);
+      }
+    }
+
+    /**
+     * Updates an existing user's password hash in Firestore (or demo store).
+     */
+    async function updateUserPassword(normalizedPhone, newPasswordHash) {
+      if (db) {
+        const userRef = doc(db, "users", normalizedPhone);
+        await updateDoc(userRef, {
+          passwordHash: newPasswordHash,
+          updatedAt: serverTimestamp()
+        });
+      } else {
+        await new Promise(r => setTimeout(r, 280));
+        const existing = demoUserRegistry.get(normalizedPhone);
+        if (existing) {
+          existing.passwordHash = newPasswordHash;
+          demoUserRegistry.set(normalizedPhone, existing);
+        }
+      }
+    }
+
+    // -----------------------------------------------------------------------
+    // 3. STATE MANAGEMENT & DOM REFERENCES
+    // -----------------------------------------------------------------------
+    const state = {
+      signupStep: 1,
+      fullName: "",
+      gender: "",
+      dob: "",
+      normalizedPhone: "",
+      verifiedResetPhone: ""
+    };
+
+    // Tabs & Views
+    const tabSignup = document.getElementById("tabSignup");
+    const tabLogin = document.getElementById("tabLogin");
+    const dotSignup = document.getElementById("dotSignup");
+    const dotLogin = document.getElementById("dotLogin");
+
+    const signupContainer = document.getElementById("signupContainer");
+    const loginContainer = document.getElementById("loginContainer");
+    const resetContainer = document.getElementById("resetContainer");
+
+    // Alert Banner
+    const alertBanner = document.getElementById("alertBanner");
+    const alertText = document.getElementById("alertText");
+    const closeAlertBtn = document.getElementById("closeAlertBtn");
+
+    function showBanner(message, type = "error") {
+      alertBanner.classList.remove("hidden", "bg-vermilion", "text-paper", "bg-emeraldSignal", "bg-ink");
+      if (type === "error") {
+        alertBanner.classList.add("bg-vermilion", "text-paper");
+      } else if (type === "success") {
+        alertBanner.classList.add("bg-emeraldSignal", "text-paper");
+      } else {
+        alertBanner.classList.add("bg-ink", "text-paper");
+      }
+      alertText.textContent = message;
+    }
+
+    function hideBanner() {
+      alertBanner.classList.add("hidden");
+    }
+
+    closeAlertBtn.addEventListener("click", hideBanner);
+
+    // -----------------------------------------------------------------------
+    // 4. VIEW SWITCHING (Create Account / Sign In / Password Reset)
+    // -----------------------------------------------------------------------
+    function switchMainView(view) {
+      hideBanner();
+      signupContainer.classList.add("hidden");
+      signupContainer.classList.remove("flex");
+      loginContainer.classList.add("hidden");
+      loginContainer.classList.remove("flex");
+      resetContainer.classList.add("hidden");
+      resetContainer.classList.remove("flex");
+
+      if (view === "signup") {
+        signupContainer.classList.remove("hidden");
+        signupContainer.classList.add("flex");
+
+        tabSignup.classList.add("bg-paper", "text-ink");
+        tabSignup.classList.remove("bg-bone", "text-ink/60");
+        dotSignup.className = "w-2 h-2 rounded-full bg-cobalt";
+
+        tabLogin.classList.add("bg-bone", "text-ink/60");
+        tabLogin.classList.remove("bg-paper", "text-ink");
+        dotLogin.className = "w-2 h-2 rounded-full bg-transparent border border-ink/40";
+      } else if (view === "login") {
+        loginContainer.classList.remove("hidden");
+        loginContainer.classList.add("flex");
+
+        tabLogin.classList.add("bg-paper", "text-ink");
+        tabLogin.classList.remove("bg-bone", "text-ink/60");
+        dotLogin.className = "w-2 h-2 rounded-full bg-cobalt";
+
+        tabSignup.classList.add("bg-bone", "text-ink/60");
+        tabSignup.classList.remove("bg-paper", "text-ink");
+        dotSignup.className = "w-2 h-2 rounded-full bg-transparent border border-ink/40";
+      } else if (view === "reset") {
+        resetContainer.classList.remove("hidden");
+        resetContainer.classList.add("flex");
+        showResetStep("verify");
+      }
+    }
+
+    tabSignup.addEventListener("click", () => switchMainView("signup"));
+    tabLogin.addEventListener("click", () => switchMainView("login"));
+
+    // -----------------------------------------------------------------------
+    // 5. SIGN UP WIZARD LOGIC (Steps 1 -> 2 -> 3)
+    // -----------------------------------------------------------------------
+    const stepPanels = {
+      1: document.getElementById("signupStep1"),
+      2: document.getElementById("signupStep2"),
+      3: document.getElementById("signupStep3")
+    };
+
+    const stepMeta = {
+      1: { title: "Identity Details", sub: "Enter your name, gender, and date of birth.", count: "01 / 03" },
+      2: { title: "Phone Verification", sub: "Verify your mobile number is unique.", count: "02 / 03" },
+      3: { title: "Account Security", sub: "Create a password to lock your direct line.", count: "03 / 03" }
+    };
+
+    function goToSignupStep(stepNum) {
+      hideBanner();
+      state.signupStep = stepNum;
+
+      Object.keys(stepPanels).forEach(k => {
+        const panel = stepPanels[k];
+        if (Number(k) === stepNum) {
+          panel.classList.remove("step-hidden");
+          panel.classList.add("step-active");
+        } else {
+          panel.classList.remove("step-active");
+          panel.classList.add("step-hidden");
+        }
+      });
+
+      document.getElementById("signupTitle").textContent = stepMeta[stepNum].title;
+      document.getElementById("signupSubtitle").textContent = stepMeta[stepNum].sub;
+      document.getElementById("stepCounter").textContent = stepMeta[stepNum].count;
+
+      document.getElementById("progBar1").className = `w-5 h-1 transition-colors ${stepNum >= 1 ? "bg-cobalt" : "bg-ink/15"}`;
+      document.getElementById("progBar2").className = `w-5 h-1 transition-colors ${stepNum >= 2 ? "bg-cobalt" : "bg-ink/15"}`;
+      document.getElementById("progBar3").className = `w-5 h-1 transition-colors ${stepNum >= 3 ? "bg-cobalt" : "bg-ink/15"}`;
+    }
+
+    // Gender Segmented Buttons
+    const genderButtons = document.querySelectorAll(".gender-btn");
+    const selectedGenderInput = document.getElementById("selectedGender");
+
+    genderButtons.forEach(btn => {
+      btn.addEventListener("click", () => {
+        genderButtons.forEach(b => {
+          b.classList.remove("bg-ink", "text-paper", "shadow-tactileSm");
+          b.classList.add("bg-paper", "text-ink");
+        });
+        btn.classList.remove("bg-paper", "text-ink");
+        btn.classList.add("bg-ink", "text-paper", "shadow-tactileSm");
+        selectedGenderInput.value = btn.dataset.gender;
+      });
+    });
+
+    // Restrict DOB max date to today
+    const dobInput = document.getElementById("dobInput");
+    const resetDobInput = document.getElementById("resetDob");
+    const todayIso = new Date().toISOString().split("T")[0];
+    dobInput.max = todayIso;
+    resetDobInput.max = todayIso;
+
+    // Step 1 Submit -> Validate Name, Gender, DOB
+    stepPanels[1].addEventListener("submit", (e) => {
+      e.preventDefault();
+      const nameVal = document.getElementById("fullName").value.trim();
+      const genderVal = selectedGenderInput.value;
+      const dobVal = dobInput.value;
+
+      if (nameVal.length < 2) {
+        showBanner("Please enter your full name (at least 2 characters).");
+        document.getElementById("fullName").focus();
+        return;
+      }
+      if (!genderVal) {
+        showBanner("Please select your gender to continue.");
+        return;
+      }
+      if (!dobVal) {
+        showBanner("Please select your date of birth.");
+        dobInput.focus();
+        return;
+      }
+
+      state.fullName = nameVal;
+      state.gender = genderVal;
+      state.dob = dobVal;
+      goToSignupStep(2);
+      document.getElementById("signupPhone").focus();
+    });
+
+    // Phone normalization helper
+    function normalizePhoneNumber(countryCode, rawDigits) {
+      const cleaned = rawDigits.replace(/\D/g, "");
+      if (cleaned.length < 7 || cleaned.length > 15) return null;
+      return `${countryCode}${cleaned}`;
+    }
+
+    // Step 2 Submit -> Verify Phone Uniqueness
+    const verifyPhoneBtn = document.getElementById("verifyPhoneBtn");
+    const verifyPhoneBtnText = document.getElementById("verifyPhoneBtnText");
+
+    stepPanels[2].addEventListener("submit", async (e) => {
+      e.preventDefault();
+      hideBanner();
+
+      const code = document.getElementById("signupCountryCode").value;
+      const rawPhone = document.getElementById("signupPhone").value;
+      const normalized = normalizePhoneNumber(code, rawPhone);
+
+      if (!normalized) {
+        showBanner("Enter a valid phone number (7 to 15 digits).");
+        document.getElementById("signupPhone").focus();
+        return;
+      }
+
+      verifyPhoneBtn.disabled = true;
+      verifyPhoneBtnText.textContent = "Checking Registry...";
+
+      try {
+        const existingUser = await findUserByPhone(normalized);
+        if (existingUser) {
+          showBanner("This phone number is already registered. Sign in instead.", "error");
+        } else {
+          state.normalizedPhone = normalized;
+          goToSignupStep(3);
+          document.getElementById("newPassword").focus();
+        }
+      } catch (err) {
+        console.error(err);
+        showBanner("Unable to verify phone number. Check your connection.");
+      } finally {
+        verifyPhoneBtn.disabled = false;
+        verifyPhoneBtnText.textContent = "Verify Number";
+      }
+    });
+
+    document.getElementById("backToStep1").addEventListener("click", () => goToSignupStep(1));
+    document.getElementById("backToStep2").addEventListener("click", () => goToSignupStep(2));
+
+    // Password Strength Meter
+    const newPasswordInput = document.getElementById("newPassword");
+    const strengthLabel = document.getElementById("strengthLabel");
+    const strBars = [
+      document.getElementById("str1"),
+      document.getElementById("str2"),
+      document.getElementById("str3"),
+      document.getElementById("str4")
+    ];
+
+    newPasswordInput.addEventListener("input", () => {
+      const val = newPasswordInput.value;
+      let score = 0;
+      if (val.length >= 6) score++;
+      if (val.length >= 10) score++;
+      if (/[A-Z]/.test(val) && /[0-9]/.test(val)) score++;
+      if (/[^A-Za-z0-9]/.test(val)) score++;
+
+      const colors = ["bg-vermilion", "bg-amber-500", "bg-cobalt", "bg-emeraldSignal"];
+      const labels = ["Weak", "Fair", "Strong", "Ironclad"];
+
+      strBars.forEach((bar, idx) => {
+        bar.className = `h-1 transition-colors ${idx < score ? colors[score - 1] : "bg-ink/15"}`;
+      });
+
+      if (val.length === 0) {
+        strengthLabel.textContent = "Min 6 chars";
+        strengthLabel.className = "font-mono text-[10px] uppercase font-semibold text-ink/50";
+      } else {
+        strengthLabel.textContent = labels[Math.max(0, score - 1)];
+        strengthLabel.className = "font-mono text-[10px] uppercase font-semibold text-ink";
+      }
+    });
+
+    // Step 3 Submit -> Create User & Redirect to main.html
+    const completeSignupBtn = document.getElementById("completeSignupBtn");
+    const completeSignupText = document.getElementById("completeSignupText");
+
+    stepPanels[3].addEventListener("submit", async (e) => {
+      e.preventDefault();
+      hideBanner();
+
+      const pass = newPasswordInput.value;
+      const confirmPass = document.getElementById("confirmPassword").value;
+
+      if (pass.length < 6) {
+        showBanner("Password must be at least 6 characters long.");
+        newPasswordInput.focus();
+        return;
+      }
+      if (pass !== confirmPass) {
+        showBanner("Passwords do not match. Please re-enter.");
+        document.getElementById("confirmPassword").focus();
+        return;
+      }
+
+      completeSignupBtn.disabled = true;
+      completeSignupText.textContent = "Creating Account...";
+
+      try {
+        // Double-check uniqueness right before write
+        const doubleCheck = await findUserByPhone(state.normalizedPhone);
+        if (doubleCheck) {
+          showBanner("This phone number was just registered. Sign in instead.");
+          goToSignupStep(2);
+          return;
+        }
+
+        const passwordHash = await hashPassword(pass);
+        const newUser = {
+          fullName: state.fullName,
+          gender: state.gender,
+          dob: state.dob,
+          phone: state.normalizedPhone,
+          passwordHash
+        };
+
+        await createUserAccount(newUser);
+        completeSessionAndRedirect(newUser);
+      } catch (err) {
+        console.error(err);
+        showBanner("Failed to create account. Please try again.");
+      } finally {
+        completeSignupBtn.disabled = false;
+        completeSignupText.textContent = "Complete Setup";
+      }
+    });
+
+    // -----------------------------------------------------------------------
+    // 6. SIGN IN (LOGIN) LOGIC
+    // -----------------------------------------------------------------------
+    const loginForm = document.getElementById("loginForm");
+    const loginSubmitBtn = document.getElementById("loginSubmitBtn");
+    const loginBtnText = document.getElementById("loginBtnText");
+
+    loginForm.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      hideBanner();
+
+      const code = document.getElementById("loginCountryCode").value;
+      const rawPhone = document.getElementById("loginPhone").value;
+      const password = document.getElementById("loginPassword").value;
+
+      const normalized = normalizePhoneNumber(code, rawPhone);
+      if (!normalized) {
+        showBanner("Enter a valid registered phone number.");
+        document.getElementById("loginPhone").focus();
+        return;
+      }
+      if (!password) {
+        showBanner("Please enter your password.");
+        document.getElementById("loginPassword").focus();
+        return;
+      }
+
+      loginSubmitBtn.disabled = true;
+      loginBtnText.textContent = "Authenticating...";
+
+      try {
+        const user = await findUserByPhone(normalized);
+        if (!user) {
+          showBanner("No account found with this phone number.");
+          return;
+        }
+
+        const enteredHash = await hashPassword(password);
+        if (enteredHash !== user.passwordHash) {
+          showBanner("Incorrect password. Use Forgot Password below to reset.");
+          return;
+        }
+
+        completeSessionAndRedirect(user);
+      } catch (err) {
+        console.error(err);
+        showBanner("Authentication error. Please try again.");
+      } finally {
+        loginSubmitBtn.disabled = false;
+        loginBtnText.textContent = "Enter Live Room";
+      }
+    });
+
+    // -----------------------------------------------------------------------
+    // 7. PASSWORD RESET VIA DATE OF BIRTH LOGIC
+    // -----------------------------------------------------------------------
+    const resetVerifyForm = document.getElementById("resetVerifyForm");
+    const resetNewPassForm = document.getElementById("resetNewPassForm");
+    const resetSubtitle = document.getElementById("resetSubtitle");
+
+    function showResetStep(step) {
+      hideBanner();
+      if (step === "verify") {
+        resetVerifyForm.classList.remove("step-hidden");
+        resetVerifyForm.classList.add("step-active");
+        resetNewPassForm.classList.remove("step-active");
+        resetNewPassForm.classList.add("step-hidden");
+        resetSubtitle.textContent = "Verify ownership with your phone and date of birth.";
+      } else {
+        resetVerifyForm.classList.remove("step-active");
+        resetVerifyForm.classList.add("step-hidden");
+        resetNewPassForm.classList.remove("step-hidden");
+        resetNewPassForm.classList.add("step-active");
+        resetSubtitle.textContent = "Identity confirmed. Set your new password below.";
+      }
+    }
+
+    document.getElementById("openResetBtn").addEventListener("click", () => {
+      // Pre-fill phone if user already typed it in login
+      const loginRaw = document.getElementById("loginPhone").value;
+      const loginCode = document.getElementById("loginCountryCode").value;
+      if (loginRaw) {
+        document.getElementById("resetPhone").value = loginRaw;
+        document.getElementById("resetCountryCode").value = loginCode;
+      }
+      switchMainView("reset");
+    });
+
+    document.getElementById("cancelResetBtn").addEventListener("click", () => {
+      switchMainView("login");
+    });
+
+    // Step A: Verify Phone + Date of Birth
+    const verifyDobBtn = document.getElementById("verifyDobBtn");
+    const verifyDobText = document.getElementById("verifyDobText");
+
+    resetVerifyForm.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      hideBanner();
+
+      const code = document.getElementById("resetCountryCode").value;
+      const rawPhone = document.getElementById("resetPhone").value;
+      const dobVal = document.getElementById("resetDob").value;
+
+      const normalized = normalizePhoneNumber(code, rawPhone);
+      if (!normalized) {
+        showBanner("Enter a valid registered phone number.");
+        return;
+      }
+      if (!dobVal) {
+        showBanner("Enter your date of birth on file.");
+        return;
+      }
+
+      verifyDobBtn.disabled = true;
+      verifyDobText.textContent = "Verifying...";
+
+      try {
+        const user = await findUserByPhone(normalized);
+        if (!user || user.dob !== dobVal) {
+          showBanner("Phone number and date of birth do not match any account.");
+          return;
+        }
+
+        state.verifiedResetPhone = normalized;
+        showResetStep("newpass");
+        document.getElementById("resetNewPassword").focus();
+      } catch (err) {
+        console.error(err);
+        showBanner("Verification failed. Please try again.");
+      } finally {
+        verifyDobBtn.disabled = false;
+        verifyDobText.textContent = "Verify Identity";
+      }
+    });
+
+    // Step B: Save New Password
+    const saveNewPassBtn = document.getElementById("saveNewPassBtn");
+    const saveNewPassText = document.getElementById("saveNewPassText");
+
+    resetNewPassForm.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      hideBanner();
+
+      const newPass = document.getElementById("resetNewPassword").value;
+      const confirmPass = document.getElementById("resetConfirmPassword").value;
+
+      if (newPass.length < 6) {
+        showBanner("New password must be at least 6 characters.");
+        return;
+      }
+      if (newPass !== confirmPass) {
+        showBanner("Passwords do not match.");
+        return;
+      }
+
+      saveNewPassBtn.disabled = true;
+      saveNewPassText.textContent = "Updating...";
+
+      try {
+        const newHash = await hashPassword(newPass);
+        await updateUserPassword(state.verifiedResetPhone, newHash);
+
+        // Reset fields & return to Sign In with confirmation banner
+        resetVerifyForm.reset();
+        resetNewPassForm.reset();
+        switchMainView("login");
+        showBanner("Password updated successfully. Sign in with your new password.", "success");
+      } catch (err) {
+        console.error(err);
+        showBanner("Could not update password. Please try again.");
+      } finally {
+        saveNewPassBtn.disabled = false;
+        saveNewPassText.textContent = "Update Password";
+      }
+    });
+
+    // -----------------------------------------------------------------------
+    // 8. SHOW / HIDE PASSWORD SVG EYE TOGGLES
+    // -----------------------------------------------------------------------
+    const eyeOpenSvg = `<svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>`;
+    const eyeClosedSvg = `<svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>`;
+
+    document.querySelectorAll(".toggle-eye").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const targetId = btn.dataset.toggle;
+        const input = document.getElementById(targetId);
+        if (!input) return;
+        const isPassword = input.type === "password";
+        input.type = isPassword ? "text" : "password";
+        btn.innerHTML = isPassword ? eyeClosedSvg : eyeOpenSvg;
+      });
+    });
+
+    // -----------------------------------------------------------------------
+    // 9. SESSION HANDOFF & REDIRECT TO main.html
+    // -----------------------------------------------------------------------
+    const redirectOverlay = document.getElementById("redirectOverlay");
+    document.getElementById("closeOverlayBtn").addEventListener("click", () => {
+      redirectOverlay.classList.add("hidden");
+    });
+
+    function completeSessionAndRedirect(user) {
+      // Persist active user payload in sessionStorage for main.html to read
+      const sessionPayload = {
+        fullName: user.fullName,
+        gender: user.gender,
+        dob: user.dob,
+        phone: user.phone,
+        authenticatedAt: Date.now()
+      };
+      try {
+        sessionStorage.setItem("relay_active_user", JSON.stringify(sessionPayload));
+      } catch (_) {
+        // Ignore storage errors in sandboxed iframes
+      }
+
+      // Show confirmation overlay & trigger navigation to main.html
+      document.getElementById("overlayUserName").textContent = `Welcome, ${user.fullName}`;
+      document.getElementById("overlayUserPhone").textContent = user.phone;
+      redirectOverlay.classList.remove("hidden");
+
+      setTimeout(() => {
+        window.location.href = "main.html";
+      }, 650);
+    }
+  </script>
+</body>
+</html>
